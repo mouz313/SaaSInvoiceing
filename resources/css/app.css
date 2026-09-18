@@ -1,0 +1,174 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+[x-cloak] {
+    display: none !important;
+}
+
+@source '../../resources/views/**/*.blade.php';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-display: 'Plus Jakarta Sans', sans-serif;
+    
+    --color-brand-50: #eff6ff;
+    --color-brand-100: #dbeafe;
+    --color-brand-500: #3b82f6;
+    --color-brand-600: #2563eb;
+    --color-brand-700: #1d4ed8;
+    --color-brand-800: #1e40af;
+    --color-brand-900: #1e3a8a;
+    --color-brand-950: #172554;
+
+    --ease-snappy: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+    body {
+        font-family: var(--font-sans);
+        transition: background-color 200ms cubic-bezier(0.16, 1, 0.3, 1), color 200ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+}
+
+/* Print Styles for Invoice Output */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #printable-invoice, #printable-invoice * {
+        visibility: visible;
+    }
+    #printable-invoice {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        background: white !important;
+        color: black !important;
+    }
+    .no-print {
+        display: none !important;
+    }
+}
+
+/* ==========================================================================
+   Avant-Garde Kinetic Stretch & Glitch Menu (Inspired by in_cognita / Aristide Benoist)
+   ========================================================================== */
+
+.kinetic-menu-overlay {
+    background: radial-gradient(circle at 50% 30%, #15161c 0%, #08080a 100%);
+}
+
+.kinetic-menu-list:hover .kinetic-menu-item:not(:hover) {
+    opacity: 0.22;
+    filter: blur(1.5px);
+    transform: scale(0.98);
+}
+
+.kinetic-menu-item {
+    position: relative;
+    display: inline-flex;
+    align-items: baseline;
+    cursor: pointer;
+    text-decoration: none;
+    user-select: none;
+    transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                filter 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                color 0.3s ease;
+}
+
+/* Expanding Kinetic Dash Line */
+.kinetic-menu-item .stretch-dash {
+    display: inline-block;
+    width: 0px;
+    height: 2.5px;
+    background-color: #3b82f6;
+    margin: 0;
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: center;
+    border-radius: 9999px;
+    vertical-align: middle;
+    align-self: center;
+    transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                margin 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.3s ease,
+                transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                background-color 0.3s ease;
+}
+
+.kinetic-menu-item:hover .stretch-dash {
+    width: 32px;
+    margin: 0 10px;
+    opacity: 1;
+    transform: scaleX(1);
+    background-color: #60a5fa;
+    box-shadow: 0 0 12px rgba(96, 165, 250, 0.6);
+}
+
+@media (min-width: 768px) {
+    .kinetic-menu-item:hover .stretch-dash {
+        width: 48px;
+        margin: 0 14px;
+    }
+}
+
+/* Kinetic Word Separation */
+.kinetic-menu-item .word-part {
+    position: relative;
+    display: inline-block;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                letter-spacing 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                color 0.3s ease;
+}
+
+.kinetic-menu-item:hover .word-part.part-left {
+    transform: translateX(-4px);
+    letter-spacing: -0.01em;
+}
+
+.kinetic-menu-item:hover .word-part.part-right {
+    transform: translateX(4px);
+    letter-spacing: -0.01em;
+}
+
+/* Kinetic Glitch / Split Character Stretcher */
+.kinetic-glitch-char {
+    position: relative;
+    display: inline-block;
+}
+
+.kinetic-menu-item:hover .kinetic-glitch-char::before,
+.kinetic-menu-item:hover .kinetic-glitch-char::after {
+    content: attr(data-char);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0.9;
+}
+
+.kinetic-menu-item:hover .kinetic-glitch-char::before {
+    clip-path: polygon(0 0, 100% 0, 100% 52%, 0 52%);
+    transform: translate(-3px, -2px) scaleX(1.1);
+    color: #60a5fa;
+    text-shadow: -1px -1px 0 rgba(96, 165, 250, 0.5);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.kinetic-menu-item:hover .kinetic-glitch-char::after {
+    clip-path: polygon(0 48%, 100% 48%, 100% 100%, 0 100%);
+    transform: translate(3px, 2px) scaleX(1.1);
+    color: #f43f5e;
+    text-shadow: 1px 1px 0 rgba(244, 63, 94, 0.5);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
