@@ -5,14 +5,20 @@ use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\ClientPortalController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EstimateController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\InvoicePaymentController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicInvoiceController;
+use App\Http\Controllers\RecurringInvoiceController;
 use App\Http\Controllers\StripeController;
+use App\Http\Controllers\TimeEntryController;
 use App\Http\Controllers\UserLogoController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +39,30 @@ Route::get('/pay/{token}', [PublicInvoiceController::class, 'show'])->name('invo
 Route::get('/pay/{token}/pdf', [PublicInvoiceController::class, 'pdf'])->name('invoices.public.pdf');
 Route::post('/pay/{token}/checkout', [PublicInvoiceController::class, 'checkout'])->name('invoices.public.checkout');
 Route::get('/pay/{token}/success', [PublicInvoiceController::class, 'success'])->name('invoices.public.success');
+
+// Public Client Estimate / Proposal Portal
+Route::get('/estimate/{token}', [EstimateController::class, 'publicView'])->name('estimates.public');
+Route::post('/estimate/{token}/accept', [EstimateController::class, 'publicAccept'])->name('estimates.public.accept');
+Route::post('/estimate/{token}/decline', [EstimateController::class, 'publicDecline'])->name('estimates.public.decline');
+
+// Client Portal Guest & Public Access
+Route::get('/portal/access/{token}', [ClientPortalController::class, 'accessViaToken'])->name('portal.access');
+Route::get('/portal/login', [ClientPortalController::class, 'showLogin'])->name('portal.login');
+Route::post('/portal/login', [ClientPortalController::class, 'login']);
+Route::post('/portal/request-link', [ClientPortalController::class, 'requestLink'])->name('portal.request-link');
+Route::post('/portal/logout', [ClientPortalController::class, 'logout'])->name('portal.logout');
+
+// Client Portal Authenticated Space
+Route::middleware(['client.portal'])->prefix('portal')->name('portal.')->group(function () {
+    Route::get('/', [ClientPortalController::class, 'dashboard'])->name('dashboard');
+    Route::get('/invoices', [ClientPortalController::class, 'invoices'])->name('invoices');
+    Route::get('/estimates', [ClientPortalController::class, 'estimates'])->name('estimates');
+    Route::post('/estimates/{estimate}/accept', [ClientPortalController::class, 'acceptEstimate'])->name('estimates.accept');
+    Route::post('/estimates/{estimate}/decline', [ClientPortalController::class, 'declineEstimate'])->name('estimates.decline');
+    Route::get('/payments', [ClientPortalController::class, 'payments'])->name('payments');
+    Route::get('/statement', [ClientPortalController::class, 'statement'])->name('statement');
+    Route::get('/statement/pdf', [ClientPortalController::class, 'statementPdf'])->name('statement.pdf');
+});
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -55,8 +85,12 @@ Route::post('/webhook/stripe', [WebhookController::class, 'handleStripe'])->name
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Client Management
+    // Client Management & Statements
     Route::resource('clients', ClientController::class);
+    Route::get('/clients/{client}/statement', [ClientController::class, 'statement'])->name('clients.statement');
+    Route::get('/clients/{client}/statement/pdf', [ClientController::class, 'statementPdf'])->name('clients.statement.pdf');
+    Route::post('/clients/{client}/statement/email', [ClientController::class, 'sendStatementEmail'])->name('clients.statement.email');
+    Route::post('/clients/{client}/portal-link', [ClientController::class, 'sendPortalLinkEmail'])->name('clients.portal-link');
 
     // Products & Categories Management
     Route::resource('products', ProductController::class);
@@ -69,6 +103,29 @@ Route::middleware('auth')->group(function () {
     Route::patch('/invoices/{invoice}/style', [InvoiceController::class, 'updateStyle'])->name('invoices.update-style');
     Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
     Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail'])->name('invoices.send-email');
+    Route::post('/invoices/{invoice}/payments', [InvoicePaymentController::class, 'store'])->name('invoices.payments.store');
+    Route::delete('/invoices/{invoice}/payments/{payment}', [InvoicePaymentController::class, 'destroy'])->name('invoices.payments.destroy');
+
+    // Recurring Invoices (Auto-Billing)
+    Route::resource('recurring', RecurringInvoiceController::class);
+    Route::patch('/recurring/{recurring}/toggle-status', [RecurringInvoiceController::class, 'toggleStatus'])->name('recurring.toggle-status');
+    Route::post('/recurring/{recurring}/generate-now', [RecurringInvoiceController::class, 'generateNow'])->name('recurring.generate-now');
+
+    // Quotations / Estimates Engine
+    Route::resource('estimates', EstimateController::class);
+    Route::patch('/estimates/{estimate}/status', [EstimateController::class, 'updateStatus'])->name('estimates.status');
+    Route::post('/estimates/{estimate}/convert', [EstimateController::class, 'convert'])->name('estimates.convert');
+    Route::get('/estimates/{estimate}/pdf', [EstimateController::class, 'downloadPdf'])->name('estimates.pdf');
+    Route::post('/estimates/{estimate}/send-email', [EstimateController::class, 'sendEmail'])->name('estimates.send-email');
+
+    // Time Tracking
+    Route::resource('time', TimeEntryController::class)->names('time');
+
+    // Expense Management
+    Route::resource('expenses', ExpenseController::class);
+
+    // Unbilled items API for invoice creator
+    Route::get('/clients/{client}/unbilled-items', [ClientController::class, 'unbilledItems'])->name('clients.unbilled-items');
 
     // Logo Gallery
     Route::get('/logos', [UserLogoController::class, 'index'])->name('logos.index');

@@ -112,13 +112,22 @@
                             <td class="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
                                 {{ $invoice->due_date->format('M d, Y') }}
                             </td>
-                            <td class="px-6 py-4 font-bold text-slate-900 dark:text-white">
-                                {{ $invoice->currency }} {{ number_format($invoice->total, 2) }}
+                            <td class="px-6 py-4">
+                                <div class="font-bold text-slate-900 dark:text-white">
+                                    {{ $invoice->currency }} {{ number_format($invoice->total, 2) }}
+                                </div>
+                                @if(($invoice->amount_paid ?? 0) > 0 && !$invoice->isPaid())
+                                    <div class="text-[11px] text-emerald-600 font-semibold">Bal: {{ $invoice->currency }} {{ number_format($invoice->balance_due ?? 0, 2) }}</div>
+                                @endif
                             </td>
                             <td class="px-6 py-4">
                                 @if($invoice->status === 'paid')
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
                                         Paid
+                                    </span>
+                                @elseif($invoice->status === 'partially_paid')
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-400">
+                                        Partially Paid
                                     </span>
                                 @elseif($invoice->status === 'sent')
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-400">
@@ -138,6 +147,13 @@
                                 <div class="flex items-center justify-end gap-1.5">
                                     <a href="{{ route('invoices.public', $invoice->public_token) }}" target="_blank" title="Client Portal &amp; Pay Link" class="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition">
                                         <i data-lucide="globe" class="w-4 h-4"></i>
+                                    </a>
+                                    @php
+                                        $waListText = urlencode("Hello {$invoice->client->name}, here is your invoice #{$invoice->invoice_number} for {$invoice->currency} " . number_format($invoice->total, 2) . ". View and pay online here: " . $invoice->public_url);
+                                        $waPhoneList = preg_replace('/[^0-9]/', '', $invoice->client->phone ?? '');
+                                    @endphp
+                                    <a href="https://wa.me/{{ $waPhoneList }}?text={{ $waListText }}" target="_blank" title="Share via WhatsApp" class="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition">
+                                        <i data-lucide="message-circle" class="w-4 h-4"></i>
                                     </a>
                                     <a href="{{ route('invoices.show', $invoice) }}" title="View &amp; Change Style" class="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
                                         <i data-lucide="eye" class="w-4 h-4"></i>

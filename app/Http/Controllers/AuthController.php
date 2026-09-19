@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\WelcomeUserMail;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
@@ -68,6 +71,12 @@ class AuthController extends Controller
             'role' => 'user',
             'invoice_credits' => 5, // 5 free starter credits
         ]);
+
+        try {
+            Mail::to($user->email)->send(new WelcomeUserMail($user));
+        } catch (\Throwable $e) {
+            Log::warning('Welcome email could not be sent: '.$e->getMessage());
+        }
 
         Auth::login($user);
         $request->session()->regenerate();
@@ -134,6 +143,12 @@ class AuthController extends Controller
                 'role' => 'user',
                 'invoice_credits' => 5,
             ]);
+
+            try {
+                Mail::to($user->email)->send(new WelcomeUserMail($user));
+            } catch (\Throwable $e) {
+                Log::warning('Welcome email could not be sent: '.$e->getMessage());
+            }
         } else {
             $user->update([
                 'firebase_uid' => $validated['firebase_uid'],

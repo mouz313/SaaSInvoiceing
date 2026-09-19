@@ -112,6 +112,28 @@
                             Create Invoice
                         </a>
 
+                        <a href="{{ route('estimates.index') }}" 
+                           class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('estimates.*') ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="file-check" class="w-4 h-4"></i>
+                                Quotations &amp; Quotes
+                            </div>
+                            <span class="text-xs px-2 py-0.5 rounded-full {{ request()->routeIs('estimates.*') ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }}">
+                                {{ Auth::user()->estimates()->count() }}
+                            </span>
+                        </a>
+
+                        <a href="{{ route('recurring.index') }}" 
+                           class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('recurring.*') ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                Recurring Invoices
+                            </div>
+                            <span class="text-xs px-2 py-0.5 rounded-full {{ request()->routeIs('recurring.*') ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }}">
+                                {{ Auth::user()->recurringInvoices()->count() }}
+                            </span>
+                        </a>
+
                         <a href="{{ route('clients.index') }}" 
                            class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('clients.*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                             <div class="flex items-center gap-3">
@@ -131,6 +153,28 @@
                             </div>
                             <span class="text-xs px-2 py-0.5 rounded-full {{ request()->routeIs('products.*') ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }}">
                                 {{ Auth::user()->products()->count() }}
+                            </span>
+                        </a>
+
+                        <a href="{{ route('time.index') }}" 
+                           class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('time.*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="clock" class="w-4 h-4"></i>
+                                Time Tracking
+                            </div>
+                            <span class="text-xs px-2 py-0.5 rounded-full {{ request()->routeIs('time.*') ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }}">
+                                {{ Auth::user()->timeEntries()->unbilled()->count() }}
+                            </span>
+                        </a>
+
+                        <a href="{{ route('expenses.index') }}" 
+                           class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('expenses.*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="receipt" class="w-4 h-4"></i>
+                                Expenses
+                            </div>
+                            <span class="text-xs px-2 py-0.5 rounded-full {{ request()->routeIs('expenses.*') ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }}">
+                                {{ Auth::user()->expenses()->unbilled()->count() }}
                             </span>
                         </a>
                     </div>

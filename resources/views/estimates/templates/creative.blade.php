@@ -1,0 +1,1 @@
+@include('estimates.templates.minimalist')

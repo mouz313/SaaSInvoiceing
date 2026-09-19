@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
@@ -103,7 +104,7 @@ class InvoiceController extends Controller
         // Check client belongs to user
         $client = $user->clients()->findOrFail($validated['client_id']);
 
-        DB::transaction(function () use ($user, $validated) {
+        $invoice = DB::transaction(function () use ($user, $validated) {
             $taxRate = (float) ($validated['tax_rate'] ?? 0);
             $discountRate = (float) ($validated['discount_rate'] ?? 0);
 
@@ -178,7 +179,43 @@ class InvoiceController extends Controller
             }
 
             $user->decrementCredits();
+
+            return $invoice;
         });
+
+        if ($request->boolean('send_email_now') && $client->email) {
+            try {
+                $invoice->load(['client', 'items', 'user', 'logo']);
+                Mail::to($client->email)->send(new InvoiceSentMail(
+                    $invoice,
+                    '',
+                    true
+                ));
+                if ($invoice->status === 'draft') {
+                    $invoice->update(['status' => 'sent']);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Direct invoice email could not be sent: '.$e->getMessage());
+            }
+        }
+
+        if ($request->filled('time_entry_ids')) {
+            Auth::user()->timeEntries()
+                ->whereIn('id', (array) $request->input('time_entry_ids'))
+                ->update([
+                    'is_billed' => true,
+                    'invoice_id' => $invoice->id,
+                ]);
+        }
+
+        if ($request->filled('expense_ids')) {
+            Auth::user()->expenses()
+                ->whereIn('id', (array) $request->input('expense_ids'))
+                ->update([
+                    'is_billed' => true,
+                    'invoice_id' => $invoice->id,
+                ]);
+        }
 
         return redirect()->route('invoices.index')->with('success', 'Invoice created successfully!');
     }
@@ -336,7 +373,11 @@ class InvoiceController extends Controller
             'status' => ['required', 'in:draft,sent,paid,overdue'],
         ]);
 
-        $invoice->update(['status' => $validated['status']]);
+        if ($validated['status'] === 'paid' && ! $invoice->isPaid()) {
+            $invoice->markAsPaid(null, 'Manual / Recorded by Business');
+        } else {
+            $invoice->update(['status' => $validated['status']]);
+        }
 
         return back()->with('success', 'Invoice status updated to '.strtoupper($validated['status']));
     }

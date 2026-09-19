@@ -7,6 +7,15 @@
      x-data="{
         taxRate: 0,
         discountRate: 0,
+        selectedClientId: '{{ old('client_id', request('client_id', '')) }}',
+        unbilledModalOpen: false,
+        unbilledLoading: false,
+        unbilledTime: [],
+        unbilledExpenses: [],
+        checkedTime: {},
+        checkedExpenses: {},
+        selectedTimeIds: [],
+        selectedExpenseIds: [],
         currency: '{{ old('currency', Auth::user()->default_currency ?? 'USD') }}',
         selectedStyle: 'minimalist',
         selectedLogoId: {{ old('logo_id', 'null') }},
@@ -82,6 +91,59 @@
                 quantity: 1,
                 unit_price: parseFloat(p.price) || 0
             });
+            this.$nextTick(() => { window.reinitIcons && window.reinitIcons(); });
+        },
+        async openUnbilledModal() {
+            if (!this.selectedClientId) {
+                alert('Please select a client from the dropdown first.');
+                return;
+            }
+            this.unbilledModalOpen = true;
+            this.unbilledLoading = true;
+            try {
+                const res = await fetch('/clients/' + this.selectedClientId + '/unbilled-items');
+                const data = await res.json();
+                this.unbilledTime = data.time_entries || [];
+                this.unbilledExpenses = data.expenses || [];
+                this.checkedTime = {};
+                this.checkedExpenses = {};
+                this.unbilledTime.forEach(t => this.checkedTime[t.id] = true);
+                this.unbilledExpenses.forEach(e => this.checkedExpenses[e.id] = true);
+            } catch (e) {
+                alert('Could not fetch unbilled items for this client.');
+            } finally {
+                this.unbilledLoading = false;
+            }
+        },
+        importUnbilled() {
+            if (this.items.length === 1 && this.items[0].description === 'Web Design & Development Services' && this.items[0].unit_price == 1200) {
+                this.items = [];
+            }
+            this.unbilledTime.forEach(t => {
+                if (this.checkedTime[t.id]) {
+                    this.items.push({
+                        description: 'Time: ' + (t.project_name ? t.project_name + ' — ' : '') + t.task_description + ' (' + t.hours + ' hrs @ $' + parseFloat(t.hourly_rate).toFixed(2) + '/hr)',
+                        quantity: parseFloat(t.hours) || 1,
+                        unit_price: parseFloat(t.hourly_rate) || 0
+                    });
+                    if (!this.selectedTimeIds.includes(t.id)) {
+                        this.selectedTimeIds.push(t.id);
+                    }
+                }
+            });
+            this.unbilledExpenses.forEach(e => {
+                if (this.checkedExpenses[e.id]) {
+                    this.items.push({
+                        description: 'Expense: ' + e.category + ' — ' + e.description,
+                        quantity: 1,
+                        unit_price: parseFloat(e.amount) || 0
+                    });
+                    if (!this.selectedExpenseIds.includes(e.id)) {
+                        this.selectedExpenseIds.push(e.id);
+                    }
+                }
+            });
+            this.unbilledModalOpen = false;
             this.$nextTick(() => { window.reinitIcons && window.reinitIcons(); });
         },
         items: [
@@ -179,7 +241,7 @@
                             + New Client
                         </a>
                     </div>
-                    <select name="client_id" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                    <select name="client_id" x-model="selectedClientId" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
                         <option value="">Select client...</option>
                         @foreach($clients as $client)
                             <option value="{{ $client->id }}" {{ old('client_id') == $client->id ? 'selected' : '' }}>
@@ -434,11 +496,18 @@
 
         <!-- Section 3: Dynamic Line Items -->
         <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
-            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+            <div class="flex flex-wrap items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 gap-2">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                    Line Items & Deliverables
+                    Line Items &amp; Deliverables
                 </h3>
-                <span class="text-xs font-semibold text-slate-500" x-text="items.length + ' item(s)'"></span>
+                <div class="flex items-center gap-3">
+                    <button type="button" @click="openUnbilledModal()"
+                            class="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800">
+                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                        Import Time &amp; Expenses
+                    </button>
+                    <span class="text-xs font-semibold text-slate-500" x-text="items.length + ' item(s)'"></span>
+                </div>
             </div>
 
             <!-- ⚡ Quick-Add from Products Catalog (Category Tabs) -->
@@ -655,9 +724,115 @@
                     </div>
                 </div>
 
-                <button type="submit" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/20 transition">
-                    Save Invoice & Generate PDF
+                <!-- Direct Email Option -->
+                <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                    <label class="flex items-start gap-2.5 cursor-pointer select-none">
+                        <input type="checkbox" name="send_email_now" value="1" {{ old('send_email_now') ? 'checked' : '' }}
+                               class="w-4 h-4 mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600">
+                        <div>
+                            <span class="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <i data-lucide="mail" class="w-3.5 h-3.5 text-blue-600"></i> Email Copy Directly to Client
+                            </span>
+                            <span class="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                                Instantly sends PDF invoice and online payment link to client's email upon creation.
+                            </span>
+                        </div>
+                    </label>
+                </div>
+
+                <button type="submit" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/20 transition flex items-center justify-center gap-2">
+                    <i data-lucide="file-check" class="w-4 h-4"></i>
+                    <span>Save Invoice &amp; Generate PDF</span>
                 </button>
+            </div>
+        </div>
+
+        <!-- Hidden inputs for linked time entries & expenses -->
+        <template x-for="id in selectedTimeIds">
+            <input type="hidden" name="time_entry_ids[]" :value="id">
+        </template>
+        <template x-for="id in selectedExpenseIds">
+            <input type="hidden" name="expense_ids[]" :value="id">
+        </template>
+
+        <!-- Unbilled Time & Expenses Modal -->
+        <div x-show="unbilledModalOpen" style="display: none;" 
+             class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-xl relative" @click.outside="unbilledModalOpen = false">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
+                    <div>
+                        <h3 class="text-base font-black text-slate-900 dark:text-white">Import Unbilled Time &amp; Expenses</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Select logged hours or costs to convert into invoice line items</p>
+                    </div>
+                    <button type="button" @click="unbilledModalOpen = false" class="text-slate-400 hover:text-slate-600">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <div x-show="unbilledLoading" class="py-12 text-center text-xs text-slate-400">
+                    Loading unbilled records...
+                </div>
+
+                <div x-show="!unbilledLoading" class="mt-4 space-y-6 max-h-96 overflow-y-auto pr-1">
+                    <!-- Time Entries Section -->
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+                            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                            Logged Time Entries (<span x-text="unbilledTime.length"></span>)
+                        </h4>
+                        <div class="space-y-2">
+                            <template x-for="entry in unbilledTime" :key="entry.id">
+                                <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition">
+                                    <input type="checkbox" x-model="checkedTime[entry.id]" class="w-4 h-4 mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300">
+                                    <div class="flex-1 text-xs">
+                                        <div class="flex items-center justify-between">
+                                            <span class="font-bold text-slate-900 dark:text-white" x-text="entry.project_name ? entry.project_name + ' — ' + entry.task_description : entry.task_description"></span>
+                                            <span class="font-extrabold text-blue-600" x-text="'$' + (parseFloat(entry.total_amount) || 0).toFixed(2)"></span>
+                                        </div>
+                                        <div class="text-[11px] text-slate-400 mt-0.5" x-text="entry.date + ' • ' + entry.hours + ' hrs @ $' + entry.hourly_rate + '/hr'"></div>
+                                    </div>
+                                </label>
+                            </template>
+                            <div x-show="unbilledTime.length === 0" class="text-xs text-slate-400 italic py-2">
+                                No unbilled time entries found for this client.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Expenses Section -->
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+                            <i data-lucide="receipt" class="w-3.5 h-3.5"></i>
+                            Billable Expenses (<span x-text="unbilledExpenses.length"></span>)
+                        </h4>
+                        <div class="space-y-2">
+                            <template x-for="exp in unbilledExpenses" :key="exp.id">
+                                <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition">
+                                    <input type="checkbox" x-model="checkedExpenses[exp.id]" class="w-4 h-4 mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300">
+                                    <div class="flex-1 text-xs">
+                                        <div class="flex items-center justify-between">
+                                            <span class="font-bold text-slate-900 dark:text-white" x-text="exp.category + ' — ' + exp.description"></span>
+                                            <span class="font-extrabold text-emerald-600" x-text="'$' + (parseFloat(exp.amount) || 0).toFixed(2)"></span>
+                                        </div>
+                                        <div class="text-[11px] text-slate-400 mt-0.5" x-text="exp.expense_date"></div>
+                                    </div>
+                                </label>
+                            </template>
+                            <div x-show="unbilledExpenses.length === 0" class="text-xs text-slate-400 italic py-2">
+                                No unbilled expenses found for this client.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-end gap-2">
+                    <button type="button" @click="unbilledModalOpen = false" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition">
+                        Cancel
+                    </button>
+                    <button type="button" @click="importUnbilled()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition">
+                        Import Selected Items
+                    </button>
+                </div>
             </div>
         </div>
     </form>

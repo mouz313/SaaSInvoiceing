@@ -111,4 +111,67 @@ class User extends Authenticatable
     {
         return $this->hasMany(ProductCategory::class);
     }
+
+    public function estimates(): HasMany
+    {
+        return $this->hasMany(Estimate::class);
+    }
+
+    public function recurringInvoices(): HasMany
+    {
+        return $this->hasMany(RecurringInvoice::class);
+    }
+
+    public function invoicePayments(): HasMany
+    {
+        return $this->hasMany(InvoicePayment::class);
+    }
+
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
+
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
+    }
+
+    public function clientLimit(): int
+    {
+        if ($this->isAdmin()) {
+            return -1;
+        }
+
+        if ($this->package) {
+            return ((float) $this->package->price > 0 || $this->package->invoice_limit === -1) ? -1 : 10;
+        }
+
+        return 5;
+    }
+
+    public function canCreateClient(): bool
+    {
+        $limit = $this->clientLimit();
+        if ($limit === -1) {
+            return true;
+        }
+
+        return $this->clients()->count() < $limit;
+    }
+
+    public function hasFeature(string $feature): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        if ($this->package && ((float) $this->package->price > 0 || $this->package->invoice_limit === -1)) {
+            return true;
+        }
+
+        $freeFeatures = ['invoicing', 'quotations', 'client_portal', 'statements', 'time_tracking', 'expense_tracking'];
+
+        return in_array($feature, $freeFeatures, true);
+    }
 }

@@ -46,7 +46,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
                         Email Address
@@ -61,6 +61,19 @@
                     </label>
                     <input type="text" name="phone" value="{{ old('phone', $client->phone) }}"
                            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+                        Preferred Currency
+                    </label>
+                    <select name="currency" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                        @foreach(\App\Support\Currency::all() as $code => $curr)
+                            <option value="{{ $code }}" {{ old('currency', $client->currency ?? 'USD') === $code ? 'selected' : '' }}>
+                                {{ $code }} ({{ $curr['symbol'] }}) - {{ $curr['name'] }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
             </div>
 

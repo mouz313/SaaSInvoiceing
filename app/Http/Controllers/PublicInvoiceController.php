@@ -72,19 +72,29 @@ class PublicInvoiceController extends Controller
         $stripeSecret = config('services.stripe.secret');
         $isPlaceholder = empty($stripeSecret) || str_starts_with($stripeSecret, 'sk_test_placeholder');
 
+        $remainingBalance = (float) ($invoice->balance_due ?? $invoice->total);
+        $amountToPay = $request->filled('amount') && (float) $request->input('amount') > 0
+            ? min($remainingBalance, (float) $request->input('amount'))
+            : $remainingBalance;
+
         // Check if simulation mode is active or Stripe keys are test placeholders
         if ($request->boolean('simulate') || $isPlaceholder) {
-            $invoice->markAsPaid('sim_pay_'.uniqid());
+            $invoice->recordPayment(
+                amount: $amountToPay,
+                paymentMethod: 'stripe',
+                referenceNumber: 'sim_pay_'.uniqid(),
+                notes: 'Online simulation checkout'
+            );
 
             return redirect()->route('invoices.public.success', $token)
-                ->with('success', 'Payment simulated successfully! The invoice has been marked as paid.');
+                ->with('success', 'Payment of '.$invoice->currency.' '.number_format($amountToPay, 2).' recorded successfully!');
         }
 
         try {
             Stripe::setApiKey($stripeSecret);
 
             $currency = strtolower($invoice->currency ?: 'usd');
-            $unitAmount = (int) round($invoice->total * 100);
+            $unitAmount = (int) round($amountToPay * 100);
 
             $session = Session::create([
                 'payment_method_types' => ['card'],
@@ -92,7 +102,7 @@ class PublicInvoiceController extends Controller
                     'price_data' => [
                         'currency' => $currency,
                         'product_data' => [
-                            'name' => 'Invoice #'.$invoice->invoice_number,
+                            'name' => 'Invoice #'.$invoice->invoice_number.($amountToPay < $remainingBalance ? ' (Partial Payment)' : ''),
                             'description' => 'Payment for services by '.($invoice->user->company_name ?: $invoice->user->name),
                         ],
                         'unit_amount' => $unitAmount,
@@ -106,6 +116,7 @@ class PublicInvoiceController extends Controller
                     'invoice_id' => $invoice->id,
                     'invoice_number' => $invoice->invoice_number,
                     'public_token' => $invoice->public_token,
+                    'amount_paid' => $amountToPay,
                 ],
                 'success_url' => route('invoices.public.success', $token).'?session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url' => route('invoices.public', $token),
@@ -138,7 +149,13 @@ class PublicInvoiceController extends Controller
                     Stripe::setApiKey($stripeSecret);
                     $session = Session::retrieve($sessionId);
                     if ($session->payment_status === 'paid') {
-                        $invoice->markAsPaid($session->payment_intent);
+                        $paidAmount = (float) ($session->metadata->amount_paid ?? ($session->amount_total / 100));
+                        $invoice->recordPayment(
+                            amount: $paidAmount,
+                            paymentMethod: 'stripe',
+                            referenceNumber: $session->payment_intent,
+                            notes: 'Stripe online checkout'
+                        );
                     }
                 } catch (\Exception $e) {
                     Log::error('Stripe Session Retrieval Failed: '.$e->getMessage());

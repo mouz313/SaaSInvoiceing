@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use App\Support\Currency;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Support\Str;
 
 class Client extends Model
 {
@@ -20,7 +23,33 @@ class Client extends Model
         'postal_code',
         'country',
         'tax_id',
+        'currency',
+        'portal_access_token',
+        'password',
     ];
+
+    protected $hidden = [
+        'password',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'password' => 'hashed',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Client $client) {
+            if (empty($client->portal_access_token)) {
+                $client->portal_access_token = Str::random(60);
+            }
+            if (empty($client->currency)) {
+                $client->currency = 'USD';
+            }
+        });
+    }
 
     public function user(): BelongsTo
     {
@@ -30,5 +59,45 @@ class Client extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function estimates(): HasMany
+    {
+        return $this->hasMany(Estimate::class);
+    }
+
+    public function recurringInvoices(): HasMany
+    {
+        return $this->hasMany(RecurringInvoice::class);
+    }
+
+    public function invoicePayments(): HasManyThrough
+    {
+        return $this->hasManyThrough(InvoicePayment::class, Invoice::class);
+    }
+
+    public function totalInvoiced(): float
+    {
+        return round((float) $this->invoices()->sum('total'), 2);
+    }
+
+    public function totalPaid(): float
+    {
+        return round((float) $this->invoices()->sum('amount_paid'), 2);
+    }
+
+    public function totalOutstanding(): float
+    {
+        return round((float) $this->invoices()->whereIn('status', ['sent', 'partially_paid', 'overdue'])->sum('balance_due'), 2);
+    }
+
+    public function getPortalUrlAttribute(): string
+    {
+        return route('portal.access', $this->portal_access_token);
+    }
+
+    public function getCurrencySymbolAttribute(): string
+    {
+        return Currency::symbol($this->currency ?? 'USD');
     }
 }
