@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\WelcomeUserMail;
 use App\Models\User;
+use App\Services\FirebaseTokenVerifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -95,6 +96,10 @@ class AuthController extends Controller
 
     public function demoLogin(string $role): RedirectResponse
     {
+        if (! app()->environment('local', 'testing')) {
+            abort(403, 'Demo login is disabled in this environment.');
+        }
+
         if (! in_array($role, ['admin', 'user'])) {
             $role = 'user';
         }
@@ -121,25 +126,36 @@ class AuthController extends Controller
         return redirect()->route('dashboard')->with('success', 'Logged in as Demo User!');
     }
 
-    public function firebaseSession(Request $request): JsonResponse
+    public function firebaseSession(Request $request, FirebaseTokenVerifier $verifier): JsonResponse
     {
         $validated = $request->validate([
-            'firebase_uid' => ['required', 'string'],
-            'email' => ['required', 'email'],
-            'name' => ['nullable', 'string'],
-            'avatar_url' => ['nullable', 'url'],
+            'id_token' => ['required', 'string'],
         ]);
 
-        $user = User::where('firebase_uid', $validated['firebase_uid'])
-            ->orWhere('email', $validated['email'])
+        $verifiedUser = $verifier->verify($validated['id_token']);
+
+        if (! $verifiedUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid, expired, or unverified Firebase ID token.',
+            ], 401);
+        }
+
+        $firebaseUid = $verifiedUser['uid'];
+        $email = $verifiedUser['email'];
+        $name = $verifiedUser['name'] ?: explode('@', $email)[0];
+        $avatarUrl = $verifiedUser['avatar_url'] ?? null;
+
+        $user = User::where('firebase_uid', $firebaseUid)
+            ->orWhere('email', $email)
             ->first();
 
         if (! $user) {
             $user = User::create([
-                'name' => $validated['name'] ?: explode('@', $validated['email'])[0],
-                'email' => $validated['email'],
-                'firebase_uid' => $validated['firebase_uid'],
-                'avatar_url' => $validated['avatar_url'] ?? null,
+                'name' => $name,
+                'email' => $email,
+                'firebase_uid' => $firebaseUid,
+                'avatar_url' => $avatarUrl,
                 'role' => 'user',
                 'invoice_credits' => 5,
             ]);
@@ -151,8 +167,8 @@ class AuthController extends Controller
             }
         } else {
             $user->update([
-                'firebase_uid' => $validated['firebase_uid'],
-                'avatar_url' => $validated['avatar_url'] ?? $user->avatar_url,
+                'firebase_uid' => $firebaseUid,
+                'avatar_url' => $avatarUrl ?? $user->avatar_url,
             ]);
         }
 

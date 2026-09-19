@@ -24,7 +24,12 @@ class ClientPortalController extends Controller
 
         if (! $client) {
             return redirect()->route('portal.login')
-                ->with('error', 'Invalid or expired portal access link.');
+                ->with('error', 'Invalid portal access link. Please request a new one.');
+        }
+
+        if ($client->portal_token_expires_at && $client->portal_token_expires_at->isPast()) {
+            return redirect()->route('portal.login')
+                ->with('error', 'This portal access link has expired. Please request a new magic link below.');
         }
 
         session(['portal_client_id' => $client->id]);
@@ -86,9 +91,10 @@ class ClientPortalController extends Controller
 
     private function sendMagicLink(Client $client): RedirectResponse
     {
-        if (empty($client->portal_access_token)) {
-            $client->update(['portal_access_token' => Str::random(60)]);
-        }
+        $client->update([
+            'portal_access_token' => Str::random(60),
+            'portal_token_expires_at' => now()->addHours(48),
+        ]);
 
         try {
             Mail::to($client->email)->send(new ClientPortalMagicLinkMail($client));

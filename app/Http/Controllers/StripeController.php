@@ -82,7 +82,34 @@ class StripeController extends Controller
 
         $transaction = Transaction::where('stripe_session_id', $sessionId)->first();
 
-        if ($transaction && $transaction->status !== 'completed') {
+        if (! $transaction) {
+            return redirect()->route('dashboard')->with('error', 'Invalid checkout session.');
+        }
+
+        if ($transaction->status !== 'completed') {
+            $stripeSecret = setting('stripe_secret_key') ?: config('services.stripe.secret');
+            $isRealStripeKey = ! empty($stripeSecret) && ! str_starts_with($stripeSecret, 'sk_test_placeholder');
+
+            // If real Stripe credentials configured and not a simulated session, verify with Stripe API
+            if ($isRealStripeKey && ! str_starts_with($sessionId, 'sim_')) {
+                try {
+                    Stripe::setApiKey($stripeSecret);
+                    $stripeSession = Session::retrieve($sessionId);
+
+                    if ($stripeSession->payment_status !== 'paid') {
+                        Log::warning("Stripe checkout session {$sessionId} not paid. Status: {$stripeSession->payment_status}");
+
+                        return redirect()->route('dashboard')
+                            ->with('error', "Payment was not completed. Stripe payment status: {$stripeSession->payment_status}");
+                    }
+                } catch (\Exception $e) {
+                    Log::error("Failed to verify Stripe checkout session {$sessionId}: ".$e->getMessage());
+
+                    return redirect()->route('dashboard')
+                        ->with('error', 'Unable to verify payment confirmation with Stripe: '.$e->getMessage());
+                }
+            }
+
             $user = $transaction->user;
             $package = $transaction->package;
 

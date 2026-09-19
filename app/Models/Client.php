@@ -25,6 +25,7 @@ class Client extends Model
         'tax_id',
         'currency',
         'portal_access_token',
+        'portal_token_expires_at',
         'password',
     ];
 
@@ -36,6 +37,7 @@ class Client extends Model
     {
         return [
             'password' => 'hashed',
+            'portal_token_expires_at' => 'datetime',
         ];
     }
 
@@ -44,6 +46,7 @@ class Client extends Model
         static::creating(function (Client $client) {
             if (empty($client->portal_access_token)) {
                 $client->portal_access_token = Str::random(60);
+                $client->portal_token_expires_at = now()->addDays(30);
             }
             if (empty($client->currency)) {
                 $client->currency = 'USD';
@@ -93,6 +96,13 @@ class Client extends Model
 
     public function getPortalUrlAttribute(): string
     {
+        if (empty($this->portal_access_token) || ($this->portal_token_expires_at && $this->portal_token_expires_at->isPast())) {
+            $this->update([
+                'portal_access_token' => Str::random(60),
+                'portal_token_expires_at' => now()->addDays(30),
+            ]);
+        }
+
         return route('portal.access', $this->portal_access_token);
     }
 

@@ -69,11 +69,11 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
     Route::post('/register', [AuthController::class, 'register'])->name('register.post');
+    Route::post('/auth/firebase-session', [AuthController::class, 'firebaseSession'])->name('auth.firebase-session');
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/auth/demo-login/{role}', [AuthController::class, 'demoLogin'])->name('auth.demo-login');
-Route::post('/auth/firebase-session', [AuthController::class, 'firebaseSession'])->name('auth.firebase-session');
 
 Route::post('/webhook/stripe', [WebhookController::class, 'handleStripe'])->name('stripe.webhook');
 

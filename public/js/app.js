@@ -49,6 +49,7 @@ window.reinitIcons = () => {
 // Firebase helpers
 window.sendFirebaseTokenToBackend = async function(user) {
     try {
+        const idToken = await user.getIdToken();
         const response = await fetch('/auth/firebase-session', {
             method: 'POST',
             headers: {
@@ -56,10 +57,7 @@ window.sendFirebaseTokenToBackend = async function(user) {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
             },
             body: JSON.stringify({
-                firebase_uid: user.uid,
-                email: user.email,
-                name: user.displayName || user.email.split('@')[0],
-                avatar_url: user.photoURL || null
+                id_token: idToken
             })
         });
 

@@ -53,6 +53,7 @@
                         <i data-lucide="zap" class="w-5 h-5"></i>
                         <span>Start Free (5 Credits)</span>
                     </a>
+                    @if (app()->environment('local', 'testing'))
                     <div class="flex items-center gap-2 w-full sm:w-auto">
                         <a href="{{ route('auth.demo-login', 'user') }}" class="flex-1 sm:flex-initial px-5 py-4 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-sm hover:opacity-90 transition">
                             Demo User
@@ -61,6 +62,7 @@
                             Demo Admin
                         </a>
                     </div>
+                    @endif
                 @endauth
             </div>
 
