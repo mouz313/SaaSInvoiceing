@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title', 'Edit Product — ' . $product->name)
 
@@ -32,17 +32,72 @@
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
-                        Category
-                    </label>
-                    <select name="category_id" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                <div x-data="{
+                    categories: {{ Js::from($categories) }},
+                    selectedCategoryId: '{{ old('category_id', $product->category_id) }}',
+                    showAddCategory: false,
+                    newCategoryName: '',
+                    isLoading: false,
+                    errorMessage: '',
+                    async createCategory() {
+                        if (!this.newCategoryName.trim()) return;
+                        this.isLoading = true;
+                        this.errorMessage = '';
+                        try {
+                            const response = await fetch('{{ route('product-categories.store') }}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                },
+                                body: JSON.stringify({ name: this.newCategoryName.trim() })
+                            });
+                            const data = await response.json();
+                            if (response.ok && data.category) {
+                                this.categories.push(data.category);
+                                this.selectedCategoryId = String(data.category.id);
+                                this.newCategoryName = '';
+                                this.showAddCategory = false;
+                            } else {
+                                this.errorMessage = data.message || (data.errors && data.errors.name ? data.errors.name[0] : 'Failed to create category');
+                            }
+                        } catch (err) {
+                            this.errorMessage = 'Network error. Try again.';
+                        } finally {
+                            this.isLoading = false;
+                        }
+                    }
+                }">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                            Category
+                        </label>
+                        <button type="button" @click="showAddCategory = !showAddCategory" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                            <span x-text="showAddCategory ? 'Cancel' : '+ Add New Category'"></span>
+                        </button>
+                    </div>
+
+                    <!-- Inline Quick Add Input -->
+                    <div x-show="showAddCategory" x-cloak class="mb-2 p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 space-y-1.5 shadow-2xs">
+                        <div class="flex items-center gap-1.5">
+                            <input type="text" x-model="newCategoryName" @keydown.enter.prevent="createCategory()" placeholder="New category name (e.g. Food, Clothing)..."
+                                   class="flex-1 px-3 py-1.5 rounded-lg border border-blue-300 dark:border-blue-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600">
+                            <button type="button" @click="createCategory()" :disabled="isLoading"
+                                    class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-50 transition shadow-2xs">
+                                <span x-show="!isLoading">Save</span>
+                                <span x-show="isLoading">...</span>
+                            </button>
+                        </div>
+                        <p x-show="errorMessage" x-text="errorMessage" class="text-[11px] text-rose-600 font-medium"></p>
+                    </div>
+
+                    <select name="category_id" x-model="selectedCategoryId" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
                         <option value="">-- Select Category --</option>
-                        @foreach($categories as $category)
-                            <option value="{{ $category->id }}" {{ old('category_id', $product->category_id) == $category->id ? 'selected' : '' }}>
-                                {{ $category->name }}
-                            </option>
-                        @endforeach
+                        <template x-for="category in categories" :key="category.id">
+                            <option :value="category.id" x-text="category.name" :selected="category.id == selectedCategoryId"></option>
+                        </template>
                     </select>
                 </div>
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\ProductCategory;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -109,17 +110,24 @@ class ProductController extends Controller
         return redirect()->route('products.index')->with('success', 'Product deleted successfully.');
     }
 
-    public function storeCategory(Request $request): RedirectResponse
+    public function storeCategory(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'color' => ['nullable', 'string', 'max:50'],
         ]);
 
-        Auth::user()->productCategories()->create([
+        $category = Auth::user()->productCategories()->create([
             'name' => $validated['name'],
             'color' => $validated['color'] ?? 'blue',
         ]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'category' => $category,
+            ], 201);
+        }
 
         return redirect()->back()->with('success', 'Category added successfully.');
     }

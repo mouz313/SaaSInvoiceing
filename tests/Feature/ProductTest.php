@@ -74,6 +74,25 @@ class ProductTest extends TestCase
         ]);
     }
 
+    public function test_user_can_create_product_category_via_json(): void
+    {
+        $response = $this->actingAs($this->user)->postJson('/product-categories', [
+            'name' => 'Electronics',
+        ]);
+
+        $response->assertStatus(201);
+        $response->assertJson([
+            'success' => true,
+            'category' => [
+                'name' => 'Electronics',
+            ],
+        ]);
+        $this->assertDatabaseHas('product_categories', [
+            'user_id' => $this->user->id,
+            'name' => 'Electronics',
+        ]);
+    }
+
     public function test_user_can_delete_product_category(): void
     {
         $category = ProductCategory::create([
