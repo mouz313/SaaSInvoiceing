@@ -106,8 +106,10 @@
             this.items.push({
                 description: p.name + (p.description ? ' — ' + p.description : ''),
                 quantity: 1,
-                unit_price: parseFloat(p.price) || 0
+                unit_price: parseFloat(p.price) || 0,
+                is_custom: true
             });
+            this.catalogModalOpen = false;
             this.$nextTick(() => { window.reinitIcons && window.reinitIcons(); });
         },
 
@@ -135,7 +137,8 @@
             }
         },
         importUnbilled() {
-            if (this.items.length === 1 && this.items[0].description === 'Web Design & Development Services' && this.items[0].unit_price == 1200) {
+            // Remove initial empty row if not filled
+            if (this.items.length === 1 && !this.items[0].description) {
                 this.items = [];
             }
             this.unbilledTime.forEach(t => {
@@ -143,7 +146,8 @@
                     this.items.push({
                         description: 'Time: ' + (t.project_name ? t.project_name + ' — ' : '') + t.task_description + ' (' + t.hours + ' hrs @ $' + parseFloat(t.hourly_rate).toFixed(2) + '/hr)',
                         quantity: parseFloat(t.hours) || 1,
-                        unit_price: parseFloat(t.hourly_rate) || 0
+                        unit_price: parseFloat(t.hourly_rate) || 0,
+                        is_custom: true
                     });
                     if (!this.selectedTimeIds.includes(t.id)) {
                         this.selectedTimeIds.push(t.id);
@@ -155,7 +159,8 @@
                     this.items.push({
                         description: 'Expense: ' + e.category + ' — ' + e.description,
                         quantity: 1,
-                        unit_price: parseFloat(e.amount) || 0
+                        unit_price: parseFloat(e.amount) || 0,
+                        is_custom: true
                     });
                     if (!this.selectedExpenseIds.includes(e.id)) {
                         this.selectedExpenseIds.push(e.id);
@@ -166,18 +171,33 @@
             this.$nextTick(() => { window.reinitIcons && window.reinitIcons(); });
         },
 
-        // Items
+        // Items - Starts with clean blank row ready for Product selection or Custom entry
         items: [
-            { description: 'Web Design & Development Services', quantity: 1, unit_price: 1200.00 }
+            { description: '', quantity: 1, unit_price: 0.00, is_custom: false }
         ],
         addItem() {
-            this.items.push({ description: '', quantity: 1, unit_price: 0.00 });
+            this.items.push({ description: '', quantity: 1, unit_price: 0.00, is_custom: false });
             this.$nextTick(() => { window.reinitIcons && window.reinitIcons(); });
         },
         removeItem(index) {
-            if (this.items.length > 1) {
-                this.items.splice(index, 1);
+            this.items.splice(index, 1);
+        },
+        handleItemSelect(item, event) {
+            const val = event.target.value;
+            if (!val) return;
+            if (val === 'custom') {
+                item.is_custom = true;
+                item.description = '';
+                item.unit_price = 0;
+            } else {
+                const prod = this.products.find(p => String(p.id) === String(val));
+                if (prod) {
+                    item.description = prod.name + (prod.description ? ' — ' + prod.description : '');
+                    item.unit_price = parseFloat(prod.price) || 0;
+                    item.is_custom = true;
+                }
             }
+            this.$nextTick(() => { window.reinitIcons && window.reinitIcons(); });
         },
 
         // Custom Taxes & Charges
@@ -397,7 +417,7 @@
                     <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
                         Line Items (<span x-text="items.length"></span>)
                     </h3>
-                    <p class="text-xs text-slate-400 mt-0.5">Add deliverables, products from catalog, or unbilled logs</p>
+                    <p class="text-xs text-slate-400 mt-0.5">Select a product from dropdown, enter custom item, or import logs</p>
                 </div>
                 
                 <!-- Quick Insertion Buttons -->
@@ -405,7 +425,7 @@
                     <button type="button" @click="catalogModalOpen = true"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-200/80 dark:border-blue-900/60 transition shadow-xs">
                         <i data-lucide="package" class="w-3.5 h-3.5 text-blue-600"></i>
-                        <span>+ Catalog Product</span>
+                        <span>Catalog Modal</span>
                     </button>
                     <button type="button" @click="openUnbilledModal()"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 text-xs font-bold border border-indigo-200/80 dark:border-indigo-900/60 transition shadow-xs">
@@ -413,16 +433,16 @@
                         <span>Import Time/Expenses</span>
                     </button>
                     <button type="button" @click="addItem()"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold hover:opacity-90 transition shadow-xs">
+                            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-xs">
                         <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-                        <span>Add Item</span>
+                        <span>+ Add Item</span>
                     </button>
                 </div>
             </div>
 
             <!-- Items Table (Desktop Header) -->
             <div class="hidden sm:grid grid-cols-12 gap-3 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                <div class="col-span-6">Description & Service Deliverable</div>
+                <div class="col-span-6">Product / Description & Deliverable</div>
                 <div class="col-span-2 text-right">Quantity</div>
                 <div class="col-span-2 text-right">Unit Price (<span x-text="currency"></span>)</div>
                 <div class="col-span-1 text-right">Total</div>
@@ -438,23 +458,58 @@
                         <div class="sm:hidden space-y-2.5">
                             <div class="flex items-center justify-between">
                                 <span class="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400" x-text="'Item #' + (index + 1)"></span>
-                                <button type="button" @click="removeItem(index)" :disabled="items.length === 1"
-                                        class="p-1 text-slate-400 hover:text-rose-600 transition disabled:opacity-20">
+                                <button type="button" @click="removeItem(index)"
+                                        class="p-1 text-slate-400 hover:text-rose-600 transition">
                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                                 </button>
                             </div>
-                            <input type="text" :name="'items[' + index + '][description]'" x-model="item.description" required placeholder="Description of service or item"
-                                   class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+
+                            <!-- Product Selector Dropdown or Custom Text Input -->
+                            <div x-show="!item.is_custom" class="w-full">
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Select Product or Custom</label>
+                                <select @change="handleItemSelect(item, $event)"
+                                        class="w-full px-3 py-2 rounded-xl border border-blue-300 dark:border-blue-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none shadow-2xs">
+                                    <option value="">-- Choose Product or Custom Item --</option>
+                                    <option value="custom">✏️ Enter Custom Item...</option>
+                                    @if($products->isNotEmpty())
+                                        @php
+                                            $groupedProducts = $products->groupBy(fn($p) => $p->category?->name ?? 'General Products');
+                                        @endphp
+                                        @foreach($groupedProducts as $categoryName => $catProds)
+                                            <optgroup label="{{ $categoryName }}">
+                                                @foreach($catProds as $prod)
+                                                    <option value="{{ $prod->id }}">
+                                                        {{ $prod->name }} — {{ $prod->price }}
+                                                    </option>
+                                                @endforeach
+                                            </optgroup>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
+
+                            <div x-show="item.is_custom" class="space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase">Item Description</label>
+                                    <button type="button" @click="item.is_custom = false; item.description = ''; item.unit_price = 0" 
+                                            class="text-[10px] font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                                        ↺ Pick from products
+                                    </button>
+                                </div>
+                                <input type="text" :name="'items[' + index + '][description]'" x-model="item.description" required placeholder="Type custom item / service..."
+                                       class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                            </div>
+
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
                                     <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Quantity</label>
                                     <input type="number" step="1" min="1" :name="'items[' + index + '][quantity]'" x-model="item.quantity" required
-                                           class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                                           class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
                                 </div>
                                 <div>
                                     <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Unit Price (<span x-text="currency"></span>)</label>
                                     <input type="number" step="any" min="0" :name="'items[' + index + '][unit_price]'" x-model="item.unit_price" required
-                                           class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                                           class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold focus:ring-2 focus:ring-blue-600 focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
                                 </div>
                             </div>
                             <div class="pt-1.5 flex items-center justify-between text-xs font-bold border-t border-slate-200/60 dark:border-slate-700/60">
@@ -466,23 +521,54 @@
                         <!-- Desktop View (>=640px) -->
                         <div class="hidden sm:grid grid-cols-12 gap-3 items-center">
                             <div class="col-span-6">
-                                <input type="text" :name="'items[' + index + '][description]'" x-model="item.description" required placeholder="Item / service description..."
-                                       class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none transition">
+                                <!-- Dropdown if not custom -->
+                                <div x-show="!item.is_custom" class="w-full">
+                                    <select @change="handleItemSelect(item, $event)"
+                                            class="w-full px-3 py-2.5 rounded-xl border border-blue-300 dark:border-blue-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm font-medium focus:ring-2 focus:ring-blue-600 focus:outline-none transition shadow-2xs">
+                                        <option value="">-- Choose Product or Custom Item --</option>
+                                        <option value="custom">✏️ Enter Custom Item...</option>
+                                        @if($products->isNotEmpty())
+                                            @php
+                                                $groupedProducts = $products->groupBy(fn($p) => $p->category?->name ?? 'General Products');
+                                            @endphp
+                                            @foreach($groupedProducts as $categoryName => $catProds)
+                                                <optgroup label="{{ $categoryName }}">
+                                                    @foreach($catProds as $prod)
+                                                        <option value="{{ $prod->id }}">
+                                                            {{ $prod->name }} — {{ $prod->price }}
+                                                        </option>
+                                                    @endforeach
+                                                </optgroup>
+                                            @endforeach
+                                        @endif
+                                    </select>
+                                </div>
+
+                                <!-- Custom Text input if selected or custom -->
+                                <div x-show="item.is_custom" class="w-full space-y-1">
+                                    <input type="text" :name="'items[' + index + '][description]'" x-model="item.description" required placeholder="Type custom item / service..."
+                                           class="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:outline-none transition">
+                                    <button type="button" @click="item.is_custom = false; item.description = ''; item.unit_price = 0" 
+                                            class="text-[10px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 pl-1">
+                                        <i data-lucide="layers" class="w-3 h-3"></i> Choose from products dropdown
+                                    </button>
+                                </div>
                             </div>
+
                             <div class="col-span-2">
                                 <input type="number" step="1" min="1" :name="'items[' + index + '][quantity]'" x-model="item.quantity" required placeholder="1"
-                                       class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold text-right focus:ring-2 focus:ring-blue-600 focus:outline-none transition">
+                                       class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold text-right focus:ring-2 focus:ring-blue-600 focus:outline-none transition [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
                             </div>
                             <div class="col-span-2">
                                 <input type="number" step="any" min="0" :name="'items[' + index + '][unit_price]'" x-model="item.unit_price" required placeholder="0.00"
-                                       class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold text-right focus:ring-2 focus:ring-blue-600 focus:outline-none transition">
+                                       class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold text-right focus:ring-2 focus:ring-blue-600 focus:outline-none transition [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
                             </div>
                             <div class="col-span-1 text-right font-extrabold text-xs text-slate-900 dark:text-white truncate">
                                 <span x-text="(((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0))).toFixed(2)"></span>
                             </div>
                             <div class="col-span-1 text-center">
-                                <button type="button" @click="removeItem(index)" :disabled="items.length === 1" 
-                                        class="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition disabled:opacity-20 disabled:cursor-not-allowed">
+                                <button type="button" @click="removeItem(index)" 
+                                        class="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition">
                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                                 </button>
                             </div>
@@ -492,12 +578,21 @@
                 </template>
             </div>
 
+            <!-- Empty State if no items -->
+            <div x-show="items.length === 0" class="py-8 text-center rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 text-slate-400 space-y-2">
+                <i data-lucide="shopping-cart" class="w-8 h-8 mx-auto text-slate-300"></i>
+                <p class="text-xs">No items added yet. Click "+ Add Item" to select a product or enter a custom service.</p>
+                <button type="button" @click="addItem()" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition">
+                    + Add Item Now
+                </button>
+            </div>
+
             <!-- Bottom Add Item Row -->
             <div class="pt-2 flex items-center justify-between">
                 <button type="button" @click="addItem()" 
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 text-xs font-bold transition">
                     <i data-lucide="plus" class="w-4 h-4 text-blue-600"></i>
-                    <span>Add Custom Line</span>
+                    <span>+ Add Another Line</span>
                 </button>
                 <span class="text-xs font-semibold text-slate-400" x-text="'Subtotal: ' + currency + ' ' + subtotal.toFixed(2)"></span>
             </div>
@@ -559,37 +654,57 @@
                     Summary Breakdown
                 </h3>
 
-                <div class="space-y-3 text-xs sm:text-sm">
+                <div class="space-y-3.5 text-xs sm:text-sm">
                     <!-- Subtotal -->
                     <div class="flex justify-between items-center text-slate-600 dark:text-slate-400">
-                        <span>Subtotal</span>
+                        <span class="font-medium">Subtotal</span>
                         <span class="font-bold text-slate-900 dark:text-white" x-text="currency + ' ' + subtotal.toFixed(2)"></span>
                     </div>
 
-                    <!-- Discount -->
-                    <div class="flex justify-between items-center gap-3">
-                        <div class="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                            <span>Discount</span>
-                            <div class="flex items-center">
-                                <input type="number" step="any" min="0" max="100" name="discount_rate" x-model="discountRate" placeholder="0"
-                                       class="w-12 px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-right focus:outline-none">
-                                <span class="ml-1 text-xs text-slate-400">%</span>
+                    <!-- Discount with Modern UI Stepper -->
+                    <div class="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                        <span class="font-medium">Discount</span>
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-0.5 shadow-2xs">
+                                <button type="button" @click="discountRate = Math.max(0, (parseFloat(discountRate) || 0) - 1)" 
+                                        class="w-6 h-6 rounded-lg bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 flex items-center justify-center text-xs font-black shadow-xs transition hover:scale-105 active:scale-95">
+                                    <i data-lucide="minus" class="w-3 h-3"></i>
+                                </button>
+                                <div class="flex items-center px-1.5">
+                                    <input type="number" step="any" min="0" max="100" name="discount_rate" x-model="discountRate" placeholder="0"
+                                           class="w-10 text-center font-bold text-xs text-slate-800 dark:text-white bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
+                                    <span class="text-xs font-bold text-slate-400">%</span>
+                                </div>
+                                <button type="button" @click="discountRate = Math.min(100, (parseFloat(discountRate) || 0) + 1)" 
+                                        class="w-6 h-6 rounded-lg bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 flex items-center justify-center text-xs font-black shadow-xs transition hover:scale-105 active:scale-95">
+                                    <i data-lucide="plus" class="w-3 h-3"></i>
+                                </button>
                             </div>
+                            <span class="font-bold text-rose-600 min-w-16 text-right" x-text="'-' + currency + ' ' + discountAmount.toFixed(2)"></span>
                         </div>
-                        <span class="font-semibold text-rose-600" x-text="'-' + currency + ' ' + discountAmount.toFixed(2)"></span>
                     </div>
 
-                    <!-- Tax -->
-                    <div class="flex justify-between items-center gap-3">
-                        <div class="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                            <span>Tax / VAT</span>
-                            <div class="flex items-center">
-                                <input type="number" step="any" min="0" max="100" name="tax_rate" x-model="taxRate" placeholder="0"
-                                       class="w-12 px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-right focus:outline-none">
-                                <span class="ml-1 text-xs text-slate-400">%</span>
+                    <!-- Tax / VAT with Modern UI Stepper -->
+                    <div class="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                        <span class="font-medium">Tax / VAT</span>
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-0.5 shadow-2xs">
+                                <button type="button" @click="taxRate = Math.max(0, (parseFloat(taxRate) || 0) - 1)" 
+                                        class="w-6 h-6 rounded-lg bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 flex items-center justify-center text-xs font-black shadow-xs transition hover:scale-105 active:scale-95">
+                                    <i data-lucide="minus" class="w-3 h-3"></i>
+                                </button>
+                                <div class="flex items-center px-1.5">
+                                    <input type="number" step="any" min="0" max="100" name="tax_rate" x-model="taxRate" placeholder="0"
+                                           class="w-10 text-center font-bold text-xs text-slate-800 dark:text-white bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
+                                    <span class="text-xs font-bold text-slate-400">%</span>
+                                </div>
+                                <button type="button" @click="taxRate = Math.min(100, (parseFloat(taxRate) || 0) + 1)" 
+                                        class="w-6 h-6 rounded-lg bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 flex items-center justify-center text-xs font-black shadow-xs transition hover:scale-105 active:scale-95">
+                                    <i data-lucide="plus" class="w-3 h-3"></i>
+                                </button>
                             </div>
+                            <span class="font-bold text-slate-900 dark:text-white min-w-16 text-right" x-text="'+' + currency + ' ' + taxAmount.toFixed(2)"></span>
                         </div>
-                        <span class="font-semibold text-slate-900 dark:text-white" x-text="'+' + currency + ' ' + taxAmount.toFixed(2)"></span>
                     </div>
 
                     <!-- Additional Charges Chips / Trigger -->
@@ -916,7 +1031,7 @@
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">Amount / Value</label>
                             <input type="number" step="any" min="0" x-model="newChargeValue" placeholder="0.00"
-                                   class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none">
+                                   class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
                         </div>
                     </div>
                 </div>
