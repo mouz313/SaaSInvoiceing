@@ -97,6 +97,16 @@
                     <i data-lucide="printer" class="w-3.5 h-3.5"></i>
                 </button>
 
+                <!-- Client Portal Link -->
+                @if($invoice->client)
+                    <a href="{{ $invoice->client->portal_url }}" 
+                       class="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold text-xs transition inline-flex items-center gap-1.5 border border-blue-200 dark:border-blue-800"
+                       title="View all your invoices & statement in your private client portal">
+                        <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 text-blue-600"></i>
+                        Client Portal
+                    </a>
+                @endif
+
                 <!-- Pay Button or Paid confirmation -->
                 @if($invoice->isPaid())
                     <span class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-sm inline-flex items-center gap-1.5" style="background-color: #059669 !important; color: #ffffff !important;">

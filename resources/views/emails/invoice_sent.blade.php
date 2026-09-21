@@ -48,6 +48,10 @@
                 <div style="margin-top: 18px;">
                     <a href="{{ $invoice->public_url }}" class="btn">View &amp; Pay Invoice Online &rarr;</a>
                 </div>
+
+                <div style="margin-top: 15px; font-size: 12px; color: #64748b;">
+                    View all past invoices, receipts &amp; statements in your <a href="{{ $invoice->client->portal_url }}" style="color: #2563eb; font-weight: 600; text-decoration: underline;">Client Portal &rarr;</a>
+                </div>
             </div>
 
             <table class="details-table">
