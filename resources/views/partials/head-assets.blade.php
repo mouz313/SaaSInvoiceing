@@ -34,6 +34,16 @@
     <link rel="stylesheet" href="{{ asset('build/assets/app-DTVkSPTQ.css') }}">
 @endif
 
+<style>
+    /* Robust fallback for gradients against compiled Tailwind resets */
+    .bg-gradient-to-r.from-blue-600.to-indigo-700,
+    .bg-gradient-to-r.from-blue-600.to-indigo-600,
+    .bg-gradient-to-r.from-blue-700.via-indigo-700.to-slate-900 {
+        background-color: #2563eb !important;
+        background-image: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%) !important;
+    }
+</style>
+
 <!-- Lucide Icons Standalone CDN -->
 <script src="https://unpkg.com/lucide@latest"></script>
 
