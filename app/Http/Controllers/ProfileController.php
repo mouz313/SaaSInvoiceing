@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\SvgSanitizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -156,6 +157,9 @@ class ProfileController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
+        // Invalidate active sessions on other devices
+        Auth::logoutOtherDevices($validated['password']);
+
         return redirect()->route('profile.edit')
             ->with('success', 'Your password has been updated successfully.')
             ->with('active_tab', 'security');
@@ -169,15 +173,27 @@ class ProfileController extends Controller
         $this->deleteStoredAvatar($user);
 
         $avatarFile = $request->file('avatar');
-        $extension = $avatarFile->getClientOriginalExtension() ?: 'png';
+        $rawExtension = strtolower($avatarFile->getClientOriginalExtension());
+        $isSvg = $rawExtension === 'svg' || str_contains((string) $avatarFile->getMimeType(), 'svg');
+        $extension = $isSvg ? 'svg' : ($avatarFile->guessExtension() ?: 'png');
         $filename = Str::random(40).'.'.$extension;
         $relativeDir = 'avatars/'.$filename;
 
-        // Stream from getPathname() to avoid PHP 8.5 Windows getRealPath() returning false on temp files
-        $stream = fopen($avatarFile->getPathname(), 'r');
-        Storage::disk('public')->put($relativeDir, $stream);
-        if (is_resource($stream)) {
-            fclose($stream);
+        if ($isSvg) {
+            try {
+                $rawContent = file_get_contents($avatarFile->getPathname());
+                $sanitized = SvgSanitizer::sanitize($rawContent ?: '');
+                Storage::disk('public')->put($relativeDir, $sanitized);
+            } catch (\Throwable $e) {
+                abort(422, 'The uploaded SVG avatar is invalid or contains unsafe elements.');
+            }
+        } else {
+            // Stream from getPathname() to avoid PHP 8.5 Windows getRealPath() returning false on temp files
+            $stream = fopen($avatarFile->getPathname(), 'r');
+            Storage::disk('public')->put($relativeDir, $stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
         }
 
         return Storage::url($relativeDir);

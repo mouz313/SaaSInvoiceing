@@ -34,13 +34,13 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/about', [PageController::class, 'about'])->name('pages.about');
 Route::get('/contact', [PageController::class, 'contact'])->name('pages.contact');
-Route::post('/contact', [PageController::class, 'submitContact'])->name('pages.contact.submit');
+Route::post('/contact', [PageController::class, 'submitContact'])->name('pages.contact.submit')->middleware('throttle:contact');
 Route::get('/faq', [PageController::class, 'faq'])->name('pages.faq');
 
 // Public Client Invoice & Payment Portal
 Route::get('/pay/{token}', [PublicInvoiceController::class, 'show'])->name('invoices.public');
 Route::get('/pay/{token}/pdf', [PublicInvoiceController::class, 'pdf'])->name('invoices.public.pdf');
-Route::post('/pay/{token}/checkout', [PublicInvoiceController::class, 'checkout'])->name('invoices.public.checkout');
+Route::post('/pay/{token}/checkout', [PublicInvoiceController::class, 'checkout'])->name('invoices.public.checkout')->middleware('throttle:public-pay');
 Route::get('/pay/{token}/success', [PublicInvoiceController::class, 'success'])->name('invoices.public.success');
 
 // Public Client Estimate / Proposal Portal
@@ -51,8 +51,8 @@ Route::post('/estimate/{token}/decline', [EstimateController::class, 'publicDecl
 // Client Portal Guest & Public Access
 Route::get('/portal/access/{token}', [ClientPortalController::class, 'accessViaToken'])->name('portal.access');
 Route::get('/portal/login', [ClientPortalController::class, 'showLogin'])->name('portal.login');
-Route::post('/portal/login', [ClientPortalController::class, 'login']);
-Route::post('/portal/request-link', [ClientPortalController::class, 'requestLink'])->name('portal.request-link');
+Route::post('/portal/login', [ClientPortalController::class, 'login'])->middleware('throttle:portal-login');
+Route::post('/portal/request-link', [ClientPortalController::class, 'requestLink'])->name('portal.request-link')->middleware('throttle:magic-link');
 Route::post('/portal/logout', [ClientPortalController::class, 'logout'])->name('portal.logout');
 
 // Client Portal Authenticated Space
@@ -71,10 +71,10 @@ Route::middleware(['client.portal'])->prefix('portal')->name('portal.')->group(f
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+    Route::post('/login', [AuthController::class, 'login'])->name('login.post')->middleware('throttle:login');
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register', [AuthController::class, 'register'])->name('register.post');
-    Route::post('/auth/firebase-session', [AuthController::class, 'firebaseSession'])->name('auth.firebase-session');
+    Route::post('/register', [AuthController::class, 'register'])->name('register.post')->middleware('throttle:register');
+    Route::post('/auth/firebase-session', [AuthController::class, 'firebaseSession'])->name('auth.firebase-session')->middleware('throttle:login');
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -197,4 +197,4 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 });
 
 // External Web-based Cron Trigger (cron-job.org, EasyCron, webhooks)
-Route::match(['get', 'post'], '/cron/run/{token?}', [WebCronController::class, 'run'])->name('cron.web');
+Route::match(['get', 'post'], '/cron/run/{token?}', [WebCronController::class, 'run'])->name('cron.web')->middleware('throttle:cron');

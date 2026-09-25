@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\UserLogo;
+use App\Services\SvgSanitizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -37,16 +38,30 @@ class UserLogoController extends Controller
         ]);
 
         $file = $request->file('logo');
-        $originalName = $file->getClientOriginalName();
-        $extension = $file->getClientOriginalExtension() ?: 'png';
+        $originalName = strip_tags($file->getClientOriginalName());
+        $rawExtension = strtolower($file->getClientOriginalExtension());
+        $isSvg = $rawExtension === 'svg' || str_contains((string) $file->getMimeType(), 'svg');
+        $extension = $isSvg ? 'svg' : ($file->guessExtension() ?: 'png');
         $filename = Str::random(40).'.'.$extension;
         $relativePath = 'logos/'.$user->id.'/'.$filename;
 
-        // Stream from getPathname() to avoid PHP 8.5 Windows getRealPath() returning false on temp files
-        $stream = fopen($file->getPathname(), 'r');
-        Storage::disk('public')->put($relativePath, $stream);
-        if (is_resource($stream)) {
-            fclose($stream);
+        if ($isSvg) {
+            try {
+                $rawContent = file_get_contents($file->getPathname());
+                $sanitized = SvgSanitizer::sanitize($rawContent ?: '');
+                Storage::disk('public')->put($relativePath, $sanitized);
+            } catch (\Throwable $e) {
+                return response()->json([
+                    'error' => 'The uploaded SVG file is invalid or contains unsafe elements.',
+                ], 422);
+            }
+        } else {
+            // Stream from getPathname() to avoid PHP 8.5 Windows getRealPath() returning false on temp files
+            $stream = fopen($file->getPathname(), 'r');
+            Storage::disk('public')->put($relativePath, $stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
         }
 
         $logo = $user->logos()->create([

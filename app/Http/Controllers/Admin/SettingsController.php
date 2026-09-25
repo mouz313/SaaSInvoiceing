@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Services\SvgSanitizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -144,13 +145,26 @@ class SettingsController extends Controller
                 if ($oldLogo && Storage::disk('public')->exists($oldLogo)) {
                     Storage::disk('public')->delete($oldLogo);
                 }
-                $extension = $file->getClientOriginalExtension() ?: 'png';
+                $rawExtension = strtolower($file->getClientOriginalExtension());
+                $isSvg = $rawExtension === 'svg' || str_contains((string) $file->getMimeType(), 'svg');
+                $extension = $isSvg ? 'svg' : ($file->guessExtension() ?: 'png');
                 $filename = 'logo_'.time().'_'.Str::random(8).'.'.$extension;
                 $relativePath = 'site/'.$filename;
-                $stream = fopen($file->getPathname(), 'r');
-                Storage::disk('public')->put($relativePath, $stream);
-                if (is_resource($stream)) {
-                    fclose($stream);
+
+                if ($isSvg) {
+                    try {
+                        $rawContent = file_get_contents($file->getPathname());
+                        $sanitized = SvgSanitizer::sanitize($rawContent ?: '');
+                        Storage::disk('public')->put($relativePath, $sanitized);
+                    } catch (\Throwable $e) {
+                        return back()->with('error', 'The uploaded SVG logo is invalid or contains prohibited elements.');
+                    }
+                } else {
+                    $stream = fopen($file->getPathname(), 'r');
+                    Storage::disk('public')->put($relativePath, $stream);
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
                 }
                 Setting::set('app_logo', $relativePath, 'general');
             }
@@ -167,13 +181,26 @@ class SettingsController extends Controller
                 if ($oldFavicon && Storage::disk('public')->exists($oldFavicon)) {
                     Storage::disk('public')->delete($oldFavicon);
                 }
-                $extension = $file->getClientOriginalExtension() ?: 'ico';
+                $rawExtension = strtolower($file->getClientOriginalExtension());
+                $isSvg = $rawExtension === 'svg' || str_contains((string) $file->getMimeType(), 'svg');
+                $extension = $isSvg ? 'svg' : ($file->guessExtension() ?: 'ico');
                 $filename = 'favicon_'.time().'_'.Str::random(8).'.'.$extension;
                 $relativePath = 'site/'.$filename;
-                $stream = fopen($file->getPathname(), 'r');
-                Storage::disk('public')->put($relativePath, $stream);
-                if (is_resource($stream)) {
-                    fclose($stream);
+
+                if ($isSvg) {
+                    try {
+                        $rawContent = file_get_contents($file->getPathname());
+                        $sanitized = SvgSanitizer::sanitize($rawContent ?: '');
+                        Storage::disk('public')->put($relativePath, $sanitized);
+                    } catch (\Throwable $e) {
+                        return back()->with('error', 'The uploaded SVG favicon is invalid or contains prohibited elements.');
+                    }
+                } else {
+                    $stream = fopen($file->getPathname(), 'r');
+                    Storage::disk('public')->put($relativePath, $stream);
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
                 }
                 Setting::set('app_favicon', $relativePath, 'general');
             }

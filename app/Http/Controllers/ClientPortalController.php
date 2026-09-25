@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -59,12 +60,14 @@ class ClientPortalController extends Controller
         $client = Client::where('email', $request->email)->first();
 
         if (! $client) {
-            return back()->withInput()->with('error', 'No client record found for this email address.');
+            return back()->withInput()->with('error', 'Invalid credentials. Please verify your email and password, or request a passwordless access link below.');
         }
 
         if ($request->filled('password')) {
             if ($client->password && Hash::check($request->password, $client->password)) {
                 $request->session()->put('portal_client_id', $client->id);
+                $request->session()->regenerate();
+                RateLimiter::clear((string) ($request->input('email', '').'|'.$request->ip()));
 
                 if ($client->must_change_password) {
                     return redirect()->route('portal.change-password')
@@ -75,7 +78,7 @@ class ClientPortalController extends Controller
                     ->with('success', "Welcome back, {$client->name}!");
             }
 
-            return back()->withInput()->with('error', 'Incorrect password. You can request a passwordless magic link below.');
+            return back()->withInput()->with('error', 'Invalid credentials. Please verify your email and password, or request a passwordless access link below.');
         }
 
         // If no password provided, send magic access link
