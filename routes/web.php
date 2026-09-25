@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\CmsController;
 use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\TemplateController as AdminTemplateController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClientController;
@@ -18,8 +19,10 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\RecurringInvoiceController;
 use App\Http\Controllers\StripeController;
+use App\Http\Controllers\TemplateController;
 use App\Http\Controllers\TimeEntryController;
 use App\Http\Controllers\UserLogoController;
+use App\Http\Controllers\WebCronController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -62,6 +65,8 @@ Route::middleware(['client.portal'])->prefix('portal')->name('portal.')->group(f
     Route::get('/payments', [ClientPortalController::class, 'payments'])->name('payments');
     Route::get('/statement', [ClientPortalController::class, 'statement'])->name('statement');
     Route::get('/statement/pdf', [ClientPortalController::class, 'statementPdf'])->name('statement.pdf');
+    Route::get('/change-password', [ClientPortalController::class, 'showChangePassword'])->name('change-password');
+    Route::post('/change-password', [ClientPortalController::class, 'updatePassword'])->name('update-password');
 });
 
 Route::middleware('guest')->group(function () {
@@ -132,6 +137,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/logos', [UserLogoController::class, 'store'])->name('logos.store');
     Route::delete('/logos/{logo}', [UserLogoController::class, 'destroy'])->name('logos.destroy');
 
+    // Invoice Templates Marketplace
+    Route::get('/templates', [TemplateController::class, 'index'])->name('templates.index');
+    Route::post('/templates/{template:slug}/checkout', [TemplateController::class, 'checkout'])->name('templates.checkout');
+    Route::get('/templates/{template:slug}/checkout/success', [TemplateController::class, 'checkoutSuccess'])->name('templates.checkout.success');
+
     // Settings & Profile Management
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'updateProfile'])->name('profile.update');
@@ -174,7 +184,17 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::patch('/cms/inquiries/{inquiry}/status', [CmsController::class, 'updateInquiryStatus'])->name('cms.inquiries.status');
     Route::delete('/cms/inquiries/{inquiry}', [CmsController::class, 'deleteInquiry'])->name('cms.inquiries.delete');
 
-    // System Settings (Social, Stripe, Firebase, General)
+    // Invoice Templates Management & Pricing
+    Route::get('/templates', [AdminTemplateController::class, 'index'])->name('templates.index');
+    Route::put('/templates/{template}', [AdminTemplateController::class, 'update'])->name('templates.update');
+    Route::patch('/templates/{template}/toggle-active', [AdminTemplateController::class, 'toggleActive'])->name('templates.toggle-active');
+
+    // System Settings (Social, Stripe, Firebase, General, Cron Automation)
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::post('/settings/cron/run', [SettingsController::class, 'runCronTask'])->name('settings.cron.run');
+    Route::post('/settings/cron/regenerate-token', [SettingsController::class, 'regenerateCronToken'])->name('settings.cron.regenerate');
 });
+
+// External Web-based Cron Trigger (cron-job.org, EasyCron, webhooks)
+Route::match(['get', 'post'], '/cron/run/{token?}', [WebCronController::class, 'run'])->name('cron.web');

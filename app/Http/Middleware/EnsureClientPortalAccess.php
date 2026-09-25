@@ -35,6 +35,14 @@ class EnsureClientPortalAccess
         view()->share('portalClient', $client);
         $request->attributes->set('portalClient', $client);
 
+        if ($client->must_change_password && ! $request->session()->get('portal_token_authenticated')) {
+            $allowedRoutes = ['portal.change-password', 'portal.update-password', 'portal.logout'];
+            if (! in_array($request->route()?->getName(), $allowedRoutes, true)) {
+                return redirect()->route('portal.change-password')
+                    ->with('info', 'Please choose your new private password to continue.');
+            }
+        }
+
         return $next($request);
     }
 }

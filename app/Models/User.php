@@ -174,4 +174,49 @@ class User extends Authenticatable
 
         return in_array($feature, $freeFeatures, true);
     }
+
+    public function templatePurchases(): HasMany
+    {
+        return $this->hasMany(UserTemplatePurchase::class);
+    }
+
+    public function hasTemplateAccess(string $styleSlug): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        // Default 4 core templates are always free for everyone
+        if (in_array($styleSlug, ['minimalist', 'corporate', 'creative', 'grid'], true)) {
+            return true;
+        }
+
+        $template = InvoiceTemplate::where('slug', $styleSlug)->first();
+        if (! $template || ! $template->is_active) {
+            return false;
+        }
+
+        if ($template->is_free) {
+            return true;
+        }
+
+        return $this->templatePurchases()->where('template_id', $template->id)->exists();
+    }
+
+    public function ownedTemplateSlugs(): array
+    {
+        if ($this->isAdmin()) {
+            return InvoiceTemplate::where('is_active', true)->pluck('slug')->toArray();
+        }
+
+        $freeSlugs = InvoiceTemplate::where('is_active', true)->where('is_free', true)->pluck('slug')->toArray();
+        // Ensure default 4 are included
+        $freeSlugs = array_unique(array_merge(['minimalist', 'corporate', 'creative', 'grid'], $freeSlugs));
+
+        $purchasedSlugs = InvoiceTemplate::whereHas('purchases', function ($q) {
+            $q->where('user_id', $this->id);
+        })->where('is_active', true)->pluck('slug')->toArray();
+
+        return array_values(array_unique(array_merge($freeSlugs, $purchasedSlugs)));
+    }
 }

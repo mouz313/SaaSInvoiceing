@@ -103,6 +103,17 @@
                             <i data-lucide="layers" class="w-4 h-4"></i>
                             Pricing Packages
                         </a>
+
+                        <a href="{{ route('admin.templates.index') }}" 
+                           class="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all {{ request()->routeIs('admin.templates*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="palette" class="w-4 h-4"></i>
+                                Invoice Templates
+                            </div>
+                            <span class="text-xs px-2 py-0.5 rounded-full {{ request()->routeIs('admin.templates*') ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }}">
+                                {{ \App\Models\InvoiceTemplate::count() }}
+                            </span>
+                        </a>
                     </div>
                 </div>
 

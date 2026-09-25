@@ -142,16 +142,25 @@
         <div class="flex items-center gap-2 flex-wrap">
             <span class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mr-1">Style Template:</span>
             <div class="flex items-center gap-1.5 flex-wrap">
-                @foreach(['minimalist' => 'Modern Minimalist', 'corporate' => 'Corporate Classic', 'creative' => 'Creative Bold', 'grid' => 'Clean Grid'] as $key => $label)
-                <form method="POST" action="{{ route('invoices.update-style', $invoice) }}" class="inline">
-                    @csrf
-                    @method('PATCH')
-                    <input type="hidden" name="style" value="{{ $key }}">
-                    <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-bold transition {{ $invoice->style === $key ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700' }}">
-                        {{ $label }}
-                    </button>
-                </form>
+                @php
+                    $availableTemplates = \App\Models\InvoiceTemplate::where('is_active', true)->orderBy('sort_order')->get();
+                    $ownedSlugs = Auth::user() ? Auth::user()->ownedTemplateSlugs() : ['minimalist', 'corporate', 'creative', 'grid'];
+                @endphp
+                @foreach($availableTemplates as $t)
+                    @if(in_array($t->slug, $ownedSlugs, true) || $t->slug === $invoice->style)
+                    <form method="POST" action="{{ route('invoices.update-style', $invoice) }}" class="inline">
+                        @csrf
+                        @method('PATCH')
+                        <input type="hidden" name="style" value="{{ $t->slug }}">
+                        <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-bold transition {{ $invoice->style === $t->slug ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700' }}">
+                            {{ $t->name }}
+                        </button>
+                    </form>
+                    @endif
                 @endforeach
+                <a href="{{ route('templates.index') }}" class="px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition flex items-center gap-1">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> + More Themes
+                </a>
             </div>
         </div>
 
@@ -175,15 +184,12 @@
 
     <!-- Paper Container with Selected Style -->
     <div id="printable-invoice" class="rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden min-h-[700px] transition-all">
-        @if($invoice->style === 'corporate')
-            @include('invoices.templates.corporate', ['invoice' => $invoice, 'isPdf' => false])
-        @elseif($invoice->style === 'creative')
-            @include('invoices.templates.creative', ['invoice' => $invoice, 'isPdf' => false])
-        @elseif($invoice->style === 'grid')
-            @include('invoices.templates.grid', ['invoice' => $invoice, 'isPdf' => false])
-        @else
-            @include('invoices.templates.minimalist', ['invoice' => $invoice, 'isPdf' => false])
-        @endif
+        @php
+            $viewName = view()->exists("invoices.templates.{$invoice->style}")
+                ? "invoices.templates.{$invoice->style}"
+                : 'invoices.templates.minimalist';
+        @endphp
+        @include($viewName, ['invoice' => $invoice, 'isPdf' => false])
     </div>
 
     <!-- Payment Records & Transaction History -->

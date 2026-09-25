@@ -58,11 +58,16 @@
                 </nav>
 
                 <!-- Client Profile & Logout -->
-                <div class="hidden md:flex items-center gap-4">
+                <div class="hidden md:flex items-center gap-3">
                     <div class="text-right">
                         <div class="text-xs font-bold text-slate-900">{{ $portalClient->name }}</div>
                         <div class="text-[11px] text-slate-500">{{ $portalClient->company_name ?: $portalClient->email }}</div>
                     </div>
+                    <a href="{{ route('portal.change-password') }}" 
+                       class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition border border-slate-200"
+                       title="Change Portal Password">
+                        Password
+                    </a>
                     <form method="POST" action="{{ route('portal.logout') }}">
                         @csrf
                         <button type="submit" class="px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition border border-rose-200">
@@ -94,6 +99,7 @@
             <a href="{{ route('portal.estimates') }}" class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('portal.estimates') ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-100' }}">Estimates &amp; Quotes</a>
             <a href="{{ route('portal.payments') }}" class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('portal.payments') ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-100' }}">Payments</a>
             <a href="{{ route('portal.statement') }}" class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('portal.statement') ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-100' }}">Account Statement</a>
+            <a href="{{ route('portal.change-password') }}" class="block px-3 py-2 rounded-lg text-sm font-semibold {{ request()->routeIs('portal.change-password') ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-100' }}">Change Password</a>
             <form method="POST" action="{{ route('portal.logout') }}" class="pt-2">
                 @csrf
                 <button type="submit" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-rose-600 hover:bg-rose-50">

@@ -160,12 +160,9 @@
     <main class="flex-1 py-8 sm:py-12 px-4 sm:px-6 print:p-0">
         <div id="printable-invoice" class="max-w-4xl mx-auto bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-slate-300/40 dark:shadow-black/50 border border-slate-200 dark:border-slate-800 overflow-hidden print:border-none print:shadow-none print:rounded-none">
             @php
-                $viewName = match ($invoice->style) {
-                    'corporate' => 'invoices.templates.corporate',
-                    'creative' => 'invoices.templates.creative',
-                    'grid' => 'invoices.templates.grid',
-                    default => 'invoices.templates.minimalist',
-                };
+                $viewName = view()->exists("invoices.templates.{$invoice->style}")
+                    ? "invoices.templates.{$invoice->style}"
+                    : 'invoices.templates.minimalist';
             @endphp
 
             @include($viewName, ['invoice' => $invoice, 'isPdf' => false])

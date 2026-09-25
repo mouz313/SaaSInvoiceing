@@ -13,6 +13,20 @@
         logos: {{ json_encode($logos->map(fn($l) => ['id' => $l->id, 'filename' => $l->filename, 'url' => $l->url])) }},
         logoUploading: false,
         logoError: '',
+        previewModalOpen: false,
+        previewSlug: '',
+        previewName: '',
+        previewCategory: '',
+        previewPrice: 0,
+        previewIsOwned: false,
+        openPreviewModal(slug, name, category, price, isOwned) {
+            this.previewSlug = slug;
+            this.previewName = name;
+            this.previewCategory = category;
+            this.previewPrice = price;
+            this.previewIsOwned = isOwned;
+            this.previewModalOpen = true;
+        },
         get logoCount() { return this.logos.length; },
         get maxLogos() { return 10; },
         selectLogo(id) {
@@ -286,27 +300,189 @@
 
         <!-- Style Selector -->
         <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 pb-2">
-                Invoice Style Template
-            </h3>
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Invoice Style Template (25 Themes)
+                </h3>
+                <a href="{{ route('templates.index') }}" target="_blank" class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+                    <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i> Visit Template Store
+                </a>
+            </div>
             <input type="hidden" name="style" :value="selectedStyle">
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div @click="selectedStyle = 'minimalist'" :class="selectedStyle === 'minimalist' ? 'ring-2 ring-blue-600 border-transparent bg-blue-50/40 dark:bg-blue-950/20' : 'border-slate-200 dark:border-slate-800'" class="cursor-pointer rounded-xl border p-4 transition">
-                    <h4 class="font-bold text-sm text-slate-900 dark:text-white">Modern Minimalist</h4>
-                    <p class="text-xs text-slate-500 mt-1">High whitespace & clean lines.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 max-h-72 overflow-y-auto pr-1">
+                @foreach($templates as $tmpl)
+                    @php
+                        $isOwned = in_array($tmpl->slug, $ownedSlugs ?? [], true) || $tmpl->slug === $invoice->style;
+                    @endphp
+                    @if($isOwned)
+                        <div @click="selectedStyle = '{{ $tmpl->slug }}'" 
+                             :class="selectedStyle === '{{ $tmpl->slug }}' ? 'ring-2 ring-blue-600 border-transparent bg-blue-50/40 dark:bg-blue-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'" 
+                             class="cursor-pointer rounded-xl border p-3.5 transition flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $tmpl->category }}</span>
+                                    <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                                        <i data-lucide="check" class="w-3 h-3"></i> Ready
+                                    </span>
+                                </div>
+                                <h4 class="font-bold text-sm text-slate-900 dark:text-white">{{ $tmpl->name }}</h4>
+                                <p class="text-xs text-slate-400 mt-0.5 line-clamp-1">{{ $tmpl->description }}</p>
+                            </div>
+                            <div class="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
+                                <span class="text-xs font-bold text-blue-600 flex items-center gap-1" x-show="selectedStyle === '{{ $tmpl->slug }}'">
+                                    <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Selected
+                                </span>
+                                <span class="text-slate-400 font-semibold" x-show="selectedStyle !== '{{ $tmpl->slug }}'">
+                                    Click to use
+                                </span>
+                                <button type="button" 
+                                        @click.stop="openPreviewModal('{{ $tmpl->slug }}', '{{ addslashes($tmpl->name) }}', '{{ $tmpl->category }}', {{ $tmpl->price }}, true)" 
+                                        class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-[11px] font-medium flex items-center gap-0.5 cursor-pointer">
+                                    <i data-lucide="eye" class="w-3 h-3"></i> Preview
+                                </button>
+                            </div>
+                        </div>
+                    @else
+                        <div class="rounded-xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/30 p-3.5 transition flex flex-col justify-between opacity-80 hover:opacity-100">
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $tmpl->category }}</span>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 flex items-center gap-1">
+                                        <i data-lucide="lock" class="w-2.5 h-2.5"></i> ${{ number_format($tmpl->price, 0) }}
+                                    </span>
+                                </div>
+                                <h4 class="font-bold text-sm text-slate-700 dark:text-slate-300">{{ $tmpl->name }}</h4>
+                                <p class="text-xs text-slate-400 mt-0.5 line-clamp-1">{{ $tmpl->description }}</p>
+                            </div>
+                            <div class="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between text-xs">
+                                <button type="button" 
+                                        @click.stop="openPreviewModal('{{ $tmpl->slug }}', '{{ addslashes($tmpl->name) }}', '{{ $tmpl->category }}', {{ $tmpl->price }}, false)" 
+                                        class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-[11px] font-medium flex items-center gap-0.5 cursor-pointer">
+                                    <i data-lucide="eye" class="w-3 h-3"></i> Preview
+                                </button>
+                                <a href="{{ route('templates.index') }}" target="_blank" class="text-indigo-600 dark:text-indigo-400 font-bold text-[11px] hover:underline flex items-center gap-0.5">
+                                    <i data-lucide="shopping-bag" class="w-3 h-3"></i> Unlock
+                                </a>
+                            </div>
+                        </div>
+                    @endif
+                @endforeach
+            </div>
+        </div>
+
+        <!-- ================= TEMPLATE PREVIEW MODAL (Zero Iframe) ================= -->
+        <div x-show="previewModalOpen" 
+             x-cloak
+             style="display: none; z-index: 99999;" 
+             class="fixed inset-0 overflow-y-auto bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-6"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             @click.self="previewModalOpen = false"
+             @keydown.escape.window="previewModalOpen = false">
+
+            <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-5xl w-full max-h-[92vh] shadow-2xl flex flex-col overflow-hidden border border-slate-200 dark:border-slate-800 relative z-10">
+                
+                <!-- Modal Top Bar -->
+                <div class="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4 bg-slate-50/90 dark:bg-slate-900/90 shrink-0">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-9 h-9 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center shrink-0">
+                            <i data-lucide="layout-template" class="w-5 h-5"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-base font-black text-slate-900 dark:text-white truncate" x-text="previewName"></h3>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300" x-text="previewCategory"></span>
+                                
+                                <template x-if="previewIsOwned">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 flex items-center gap-1">
+                                        <i data-lucide="check" class="w-3 h-3"></i> Unlocked
+                                    </span>
+                                </template>
+                                <template x-if="!previewIsOwned">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
+                                        $<span x-text="Number(previewPrice).toFixed(2)"></span>
+                                    </span>
+                                </template>
+                            </div>
+                            <p class="text-xs text-slate-400 truncate">Protected Interactive Preview • Watermarked design sample</p>
+                        </div>
+                    </div>
+
+                    <!-- Action buttons & Close -->
+                    <div class="flex items-center gap-2.5 shrink-0">
+                        <template x-if="previewIsOwned">
+                            <button type="button" 
+                                    @click="selectedStyle = previewSlug; previewModalOpen = false;"
+                                    class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="check-circle" class="w-4 h-4"></i>
+                                <span>Apply This Template</span>
+                            </button>
+                        </template>
+
+                        <template x-if="!previewIsOwned">
+                            <a href="{{ route('templates.index') }}" target="_blank"
+                               class="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition flex items-center gap-1.5">
+                                <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+                                <span>Unlock in Store</span>
+                            </a>
+                        </template>
+
+                        <button type="button" @click="previewModalOpen = false" 
+                                class="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
                 </div>
-                <div @click="selectedStyle = 'corporate'" :class="selectedStyle === 'corporate' ? 'ring-2 ring-blue-600 border-transparent bg-blue-50/40 dark:bg-blue-950/20' : 'border-slate-200 dark:border-slate-800'" class="cursor-pointer rounded-xl border p-4 transition">
-                    <h4 class="font-bold text-sm text-slate-900 dark:text-white">Corporate Classic</h4>
-                    <p class="text-xs text-slate-500 mt-1">Navy header & formal signatures.</p>
-                </div>
-                <div @click="selectedStyle = 'creative'" :class="selectedStyle === 'creative' ? 'ring-2 ring-blue-600 border-transparent bg-blue-50/40 dark:bg-blue-950/20' : 'border-slate-200 dark:border-slate-800'" class="cursor-pointer rounded-xl border p-4 transition">
-                    <h4 class="font-bold text-sm text-slate-900 dark:text-white">Creative Bold</h4>
-                    <p class="text-xs text-slate-500 mt-1">Gradient banner & carded layout.</p>
-                </div>
-                <div @click="selectedStyle = 'grid'" :class="selectedStyle === 'grid' ? 'ring-2 ring-blue-600 border-transparent bg-blue-50/40 dark:bg-blue-950/20' : 'border-slate-200 dark:border-slate-800'" class="cursor-pointer rounded-xl border p-4 transition">
-                    <h4 class="font-bold text-sm text-slate-900 dark:text-white">Clean Grid</h4>
-                    <p class="text-xs text-slate-500 mt-1">Boxed cells & engineering clarity.</p>
+
+                <!-- Modal Body (Zero Iframe, Instant Render, Protected) -->
+                <div class="flex-1 bg-slate-100 dark:bg-slate-950 p-3 sm:p-6 overflow-y-auto max-h-[calc(92vh-75px)] flex justify-center">
+                    <div class="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl overflow-hidden self-start select-none"
+                         style="user-select: none; -webkit-user-select: none;">
+                        
+                        <!-- High-Density Diagonal SVG Watermark Overlay (Only if not owned) -->
+                        <template x-if="!previewIsOwned">
+                            <div class="absolute inset-0 z-30 pointer-events-none overflow-hidden opacity-30 select-none">
+                                <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                                    <defs>
+                                        <pattern id="wmPatternModalEdit" width="280" height="180" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">
+                                            <text x="20" y="40" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="12" fill="#0f172a" letter-spacing="3" text-transform="uppercase">
+                                                PREVIEW ONLY • DO NOT COPY
+                                            </text>
+                                            <text x="40" y="110" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="800" font-size="10" fill="#2563eb" letter-spacing="2">
+                                                INVOICEHUB SAMPLE
+                                            </text>
+                                            <text x="10" y="160" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="11" fill="#dc2626" letter-spacing="3">
+                                                PURCHASE TO UNLOCK
+                                            </text>
+                                        </pattern>
+                                    </defs>
+                                    <rect width="100%" height="100%" fill="url(#wmPatternModalEdit)" />
+                                </svg>
+                            </div>
+                        </template>
+
+                        <!-- Transparent Protective Glass Shield -->
+                        <template x-if="!previewIsOwned">
+                            <div class="absolute inset-0 z-20 pointer-events-auto bg-transparent cursor-default"
+                                 @contextmenu.prevent
+                                 @dragstart.prevent
+                                 title="Protected Preview"></div>
+                        </template>
+
+                        <!-- Direct Instant Template Inclusions -->
+                        <div class="relative z-10 pointer-events-none p-2 sm:p-4">
+                            @foreach($templates as $tmpl)
+                                <div x-show="previewSlug === '{{ $tmpl->slug }}'" x-cloak>
+                                    @include('invoices.templates.' . $tmpl->slug, ['invoice' => $mockInvoice, 'isPdf' => false])
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

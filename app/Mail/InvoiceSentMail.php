@@ -18,9 +18,17 @@ class InvoiceSentMail extends Mailable
     public function __construct(
         public Invoice $invoice,
         public string $customMessage = '',
-        public bool $attachPdf = true
+        public bool $attachPdf = true,
+        public ?string $tempPassword = null
     ) {
         $this->invoice->loadMissing(['client', 'items', 'user', 'logo']);
+        if (empty($this->tempPassword)) {
+            if (! empty($this->invoice->client?->temp_password)) {
+                $this->tempPassword = $this->invoice->client->temp_password;
+            } elseif ($this->invoice->client && $this->invoice->client->must_change_password) {
+                $this->tempPassword = $this->invoice->client->generateTemporaryPassword();
+            }
+        }
     }
 
     public function envelope(): Envelope
@@ -36,6 +44,9 @@ class InvoiceSentMail extends Mailable
     {
         return new Content(
             view: 'emails.invoice_sent',
+            with: [
+                'tempPassword' => $this->tempPassword,
+            ],
         );
     }
 
@@ -50,12 +61,9 @@ class InvoiceSentMail extends Mailable
             return [];
         }
 
-        $viewName = match ($this->invoice->style) {
-            'corporate' => 'invoices.templates.corporate',
-            'creative' => 'invoices.templates.creative',
-            'grid' => 'invoices.templates.grid',
-            default => 'invoices.templates.minimalist',
-        };
+        $viewName = view()->exists("invoices.templates.{$this->invoice->style}")
+            ? "invoices.templates.{$this->invoice->style}"
+            : 'invoices.templates.minimalist';
 
         $pdf = Pdf::loadView($viewName, [
             'invoice' => $this->invoice,

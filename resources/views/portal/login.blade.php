@@ -14,7 +14,7 @@
     </style>
 </head>
 <body class="h-full flex items-center justify-center p-4">
-    <div class="w-full max-w-md" x-data="{ hasPassword: false }">
+    <div class="w-full max-w-md" x-data="{ hasPassword: true }">
         <!-- Logo / Header -->
         <div class="text-center mb-8">
             <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 text-white font-black text-2xl shadow-lg shadow-blue-500/30 mb-3">

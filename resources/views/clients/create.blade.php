@@ -76,6 +76,21 @@
                 </div>
             </div>
 
+            <div class="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 space-y-2">
+                <div class="flex items-center justify-between">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-blue-900 dark:text-blue-200">
+                        Client Portal Password (Optional)
+                    </label>
+                    <span class="text-[11px] text-blue-600 dark:text-blue-400">Leave blank to auto-generate</span>
+                </div>
+                <input type="text" name="password" value="{{ old('password') }}" placeholder="e.g. Secret123! (or leave blank to auto-generate)"
+                       class="w-full px-4 py-2.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                    If left blank, a secure temporary password will be automatically generated and emailed to the client. Upon first login, they will be required to change it.
+                </p>
+                @error('password') <p class="text-rose-600 text-xs mt-1">{{ $message }}</p> @enderror
+            </div>
+
             <div>
                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
                     Street Address

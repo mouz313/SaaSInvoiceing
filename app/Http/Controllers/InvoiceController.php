@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\InvoiceSentMail;
 use App\Models\Invoice;
+use App\Models\InvoiceTemplate;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,7 +43,7 @@ class InvoiceController extends Controller
         return view('invoices.index', compact('invoices', 'search', 'status'));
     }
 
-    public function create(): View|RedirectResponse
+    public function create(Request $request): View|RedirectResponse
     {
         $user = Auth::user();
 
@@ -61,7 +62,13 @@ class InvoiceController extends Controller
         $nextId = $latestInvoice ? ($latestInvoice->id + 1) : 1;
         $defaultNumber = 'INV-'.date('Y').'-'.str_pad((string) $nextId, 4, '0', STR_PAD_LEFT);
 
-        return view('invoices.create', compact('clients', 'defaultNumber', 'logos', 'products', 'categories'));
+        $templates = InvoiceTemplate::where('is_active', true)->orderBy('sort_order')->get();
+        $ownedSlugs = $user->ownedTemplateSlugs();
+        $requestedStyle = $request->query('style');
+        $defaultStyle = ($requestedStyle && in_array($requestedStyle, $ownedSlugs, true)) ? $requestedStyle : 'minimalist';
+        $mockInvoice = InvoiceTemplate::sampleInvoice($user);
+
+        return view('invoices.create', compact('clients', 'defaultNumber', 'logos', 'products', 'categories', 'templates', 'ownedSlugs', 'defaultStyle', 'mockInvoice'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -79,7 +86,15 @@ class InvoiceController extends Controller
             'invoice_date' => ['required', 'date'],
             'due_date' => ['required', 'date', 'after_or_equal:invoice_date'],
             'status' => ['required', 'in:draft,sent,paid,overdue'],
-            'style' => ['required', 'in:minimalist,corporate,creative,grid'],
+            'style' => [
+                'required',
+                'string',
+                function ($attribute, $value, $fail) use ($user) {
+                    if (! $user->hasTemplateAccess($value)) {
+                        $fail("You do not have access to the '{$value}' template. Please unlock it from the Template Store first.");
+                    }
+                },
+            ],
             'logo_id' => ['nullable', 'exists:user_logos,id'],
             'currency' => ['required', 'string', 'max:10'],
             'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -238,13 +253,17 @@ class InvoiceController extends Controller
         $logos = Auth::user()->logos()->latest()->get();
         $products = Auth::user()->products()->with('category')->latest()->get();
         $categories = Auth::user()->productCategories()->get();
+        $templates = InvoiceTemplate::where('is_active', true)->orderBy('sort_order')->get();
+        $ownedSlugs = Auth::user()->ownedTemplateSlugs();
+        $mockInvoice = $invoice;
 
-        return view('invoices.edit', compact('invoice', 'clients', 'logos', 'products', 'categories'));
+        return view('invoices.edit', compact('invoice', 'clients', 'logos', 'products', 'categories', 'templates', 'ownedSlugs', 'mockInvoice'));
     }
 
     public function update(Request $request, Invoice $invoice): RedirectResponse
     {
         $this->authorizeInvoice($invoice);
+        $user = Auth::user();
 
         $validated = $request->validate([
             'client_id' => ['required', 'exists:clients,id'],
@@ -252,7 +271,16 @@ class InvoiceController extends Controller
             'invoice_date' => ['required', 'date'],
             'due_date' => ['required', 'date', 'after_or_equal:invoice_date'],
             'status' => ['required', 'in:draft,sent,paid,overdue'],
-            'style' => ['required', 'in:minimalist,corporate,creative,grid'],
+            'style' => [
+                'required',
+                'string',
+                function ($attribute, $value, $fail) use ($user, $invoice) {
+                    // Allow keeping existing style if already on invoice or if user owns it
+                    if ($value !== $invoice->style && ! $user->hasTemplateAccess($value)) {
+                        $fail("You do not have access to the '{$value}' template. Please unlock it from the Template Store first.");
+                    }
+                },
+            ],
             'logo_id' => ['nullable', 'exists:user_logos,id'],
             'currency' => ['required', 'string', 'max:10'],
             'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -385,9 +413,18 @@ class InvoiceController extends Controller
     public function updateStyle(Request $request, Invoice $invoice): RedirectResponse
     {
         $this->authorizeInvoice($invoice);
+        $user = Auth::user();
 
         $validated = $request->validate([
-            'style' => ['required', 'in:minimalist,corporate,creative,grid'],
+            'style' => [
+                'required',
+                'string',
+                function ($attribute, $value, $fail) use ($user) {
+                    if (! $user->hasTemplateAccess($value)) {
+                        $fail("You do not have access to the '{$value}' template. Please unlock it from the Template Store first.");
+                    }
+                },
+            ],
         ]);
 
         $invoice->update(['style' => $validated['style']]);
@@ -432,12 +469,9 @@ class InvoiceController extends Controller
 
         $invoice->load(['client', 'items', 'user', 'logo']);
 
-        $viewName = match ($invoice->style) {
-            'corporate' => 'invoices.templates.corporate',
-            'creative' => 'invoices.templates.creative',
-            'grid' => 'invoices.templates.grid',
-            default => 'invoices.templates.minimalist',
-        };
+        $viewName = view()->exists("invoices.templates.{$invoice->style}")
+            ? "invoices.templates.{$invoice->style}"
+            : 'invoices.templates.minimalist';
 
         $pdf = Pdf::loadView($viewName, [
             'invoice' => $invoice,

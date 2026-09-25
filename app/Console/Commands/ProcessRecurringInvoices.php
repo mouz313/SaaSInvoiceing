@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\RecurringInvoice;
+use App\Models\Setting;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -28,6 +29,15 @@ class ProcessRecurringInvoices extends Command
      */
     public function handle(): int
     {
+        $enabled = Setting::get('cron_recurring_enabled', true);
+        if (! $enabled) {
+            $this->warn('Automated recurring invoice generation is currently disabled in Settings.');
+            Setting::set('cron_last_recurring_run_at', now()->toDateTimeString(), 'cron', 'string');
+            Setting::set('cron_last_recurring_result', 'Skipped: recurring invoices disabled in Settings at '.now()->format('M d, Y H:i:s'), 'cron', 'string');
+
+            return Command::SUCCESS;
+        }
+
         $today = Carbon::today();
         $this->info("Checking for scheduled recurring invoices on {$today->toDateString()}...");
 
@@ -49,7 +59,12 @@ class ProcessRecurringInvoices extends Command
             }
         }
 
-        $this->info("Processed {$count} recurring invoice profiles.");
+        $resultMsg = "Processed {$count} recurring invoice profiles on ".now()->format('M d, Y H:i:s');
+        $this->info($resultMsg);
+
+        Setting::set('cron_last_recurring_run_at', now()->toDateTimeString(), 'cron', 'string');
+        Setting::set('cron_last_recurring_result', $resultMsg, 'cron', 'string');
+        Setting::set('cron_last_heartbeat_at', now()->toDateTimeString(), 'cron', 'string');
 
         return Command::SUCCESS;
     }

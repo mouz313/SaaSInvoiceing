@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Mail\PaymentReminderMail;
 use App\Models\Invoice;
+use App\Models\Setting;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -30,8 +31,31 @@ class SendPaymentReminders extends Command
      */
     public function handle(): int
     {
+        $enabled = Setting::get('cron_reminders_enabled', true);
+        if (! $enabled) {
+            $this->warn('Automated payment reminders are currently disabled in Settings.');
+            Setting::set('cron_last_reminders_run_at', now()->toDateTimeString(), 'cron', 'string');
+            Setting::set('cron_last_reminders_result', 'Skipped: reminders disabled in Settings at '.now()->format('M d, Y H:i:s'), 'cron', 'string');
+
+            return Command::SUCCESS;
+        }
+
         $today = Carbon::today();
         $this->info("Scanning invoices for payment reminders on {$today->toDateString()}...");
+
+        // Auto-update all sent invoices that have passed their due date to overdue
+        $autoOverdueCount = Invoice::where('status', 'sent')
+            ->where('balance_due', '>', 0)
+            ->whereNotNull('due_date')
+            ->where('due_date', '<', $today)
+            ->update(['status' => 'overdue']);
+
+        if ($autoOverdueCount > 0) {
+            $this->info("Marked {$autoOverdueCount} past-due invoice(s) as overdue.");
+        }
+
+        $upcomingDays = (int) Setting::get('cron_reminder_upcoming_days', 3);
+        $overdueInterval = (int) Setting::get('cron_reminder_overdue_interval', 3);
 
         $invoices = Invoice::with(['client', 'user', 'items', 'logo'])
             ->whereIn('status', ['sent', 'partially_paid', 'overdue'])
@@ -51,8 +75,8 @@ class SendPaymentReminders extends Command
             $reminderType = null;
             $daysOverdue = 0;
 
-            if ($diffDays === 3) {
-                // Tier 1: 3 days before due date
+            if ($diffDays === $upcomingDays) {
+                // Tier 1: Configured days before due date (default: 3)
                 $reminderType = 'upcoming';
             } elseif ($diffDays === 0) {
                 // Tier 2: On due date
@@ -72,13 +96,13 @@ class SendPaymentReminders extends Command
                 continue;
             }
 
-            // Anti-spam check: prevent sending more than once per day, and overdue reminders spaced at least 3 days
+            // Anti-spam check: prevent sending more than once per day, and overdue reminders spaced at least configured days
             if ($invoice->last_reminder_sent_at) {
                 $lastSent = Carbon::parse($invoice->last_reminder_sent_at);
                 if ($lastSent->isSameDay($today)) {
                     continue;
                 }
-                if ($reminderType === 'overdue' && $lastSent->diffInDays($today) < 3) {
+                if ($reminderType === 'overdue' && $lastSent->diffInDays($today) < $overdueInterval) {
                     continue;
                 }
             }
@@ -101,7 +125,12 @@ class SendPaymentReminders extends Command
             }
         }
 
-        $this->info("Completed. {$sentCount} payment reminders dispatched.");
+        $resultMsg = "Completed. {$sentCount} payment reminders dispatched on ".now()->format('M d, Y H:i:s');
+        $this->info($resultMsg);
+
+        Setting::set('cron_last_reminders_run_at', now()->toDateTimeString(), 'cron', 'string');
+        Setting::set('cron_last_reminders_result', $resultMsg, 'cron', 'string');
+        Setting::set('cron_last_heartbeat_at', now()->toDateTimeString(), 'cron', 'string');
 
         return Command::SUCCESS;
     }

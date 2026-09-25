@@ -5,262 +5,238 @@
     <meta charset="utf-8">
     <title>Invoice {{ $invoice->invoice_number }}</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
-        body { color: #0f172a; background: #ffffff; font-size: 12px; line-height: 1.4; padding: 30px 35px; }
-        .brand-h1 { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; text-transform: uppercase; }
-        .section-label { font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 6px; }
-        table.grid-data-table { width: 100%; border-collapse: collapse; border: 2px solid #0f172a; margin-bottom: 25px; }
-        table.grid-data-table th { background: #0f172a; color: #ffffff; padding: 9px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
-        table.grid-data-table td { padding: 9px 10px; border: 1px solid #cbd5e1; }
-        .grand-line { background: #0f172a; color: #ffffff; font-weight: bold; font-size: 13px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Consolas', 'Courier New', monospace; }
+        body { color: #0f172a; background: #ffffff; font-size: 11px; line-height: 1.4; padding: 25px; }
+        .blueprint-frame { border: 2px solid #0f172a; padding: 18px; }
+        .badge { display: inline-block; padding: 2px 6px; font-size: 9px; font-weight: 900; background: #0f172a; color: #ffffff; text-transform: uppercase; }
+        .table { width: 100%; border-collapse: collapse; margin-top: 15px; border: 1px solid #cbd5e1; }
+        .table th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px 5px; text-align: left; font-size: 9px; font-weight: 900; text-transform: uppercase; }
+        .table td { border: 1px solid #e2e8f0; padding: 7px 5px; font-size: 10px; }
     </style>
 </head>
 <body>
-    {{-- Header Box --}}
-    <table style="width: 100%; border-collapse: collapse; border: 2px solid #0f172a; margin-bottom: 25px;">
-        <tr>
-            <td style="vertical-align: top; padding: 18px 20px; border-right: 2px solid #0f172a;">
-                @if($invoice->logo)
-                    <img src="{{ $invoice->logo->absolutePath }}" alt="Logo" style="max-height: 38px; max-width: 140px; margin-bottom: 6px; display: block;">
-                @endif
-                <div class="brand-h1">{{ $invoice->user->name }}</div>
-                <div style="color: #64748b; font-size: 11px; margin-top: 3px;">{{ $invoice->user->email }}</div>
-                <div style="display: inline-block; margin-top: 8px; padding: 2px 8px; border: 1px solid #0f172a; font-weight: bold; font-size: 10px; text-transform: uppercase;">
-                    Status: {{ $invoice->status }}
-                </div>
-            </td>
-            <td style="width: 260px; vertical-align: top; padding: 18px 20px; background: #f8fafc;">
-                <div style="font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">INVOICE STATEMENT</div>
-                <div style="font-size: 18px; font-weight: bold; margin-top: 4px; color: #0f172a;">#{{ $invoice->invoice_number }}</div>
-                <div style="margin-top: 8px; font-size: 11px; color: #334155;"><strong>Currency:</strong> {{ strtoupper($invoice->currency) }}</div>
-            </td>
-        </tr>
-    </table>
-
-    {{-- Sub Box --}}
-    <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; margin-bottom: 25px;">
-        <tr>
-            <td style="width: 50%; vertical-align: top; padding: 14px 16px; border-right: 1px solid #cbd5e1;">
-                <div class="section-label">01 // CLIENT IDENTIFICATION</div>
-                <div style="font-weight: bold; font-size: 13px; color: #0f172a;">{{ $invoice->client->name }}</div>
-                @if($invoice->client->company_name)
-                    <div style="color: #334155; margin-top: 2px;">{{ $invoice->client->company_name }}</div>
-                @endif
-                @if($invoice->client->address)
-                    <div style="color: #64748b; margin-top: 2px;">{{ $invoice->client->address }}</div>
-                @endif
-                @if($invoice->client->city || $invoice->client->country)
-                    <div style="color: #64748b; margin-top: 2px;">{{ $invoice->client->city }}, {{ $invoice->client->country }}</div>
-                @endif
-                @if($invoice->client->tax_id)
-                    <div style="color: #64748b; font-size: 11px; margin-top: 2px;">TAX ID: {{ $invoice->client->tax_id }}</div>
-                @endif
-            </td>
-            <td style="width: 50%; vertical-align: top; padding: 14px 16px;">
-                <div class="section-label">02 // TRANSACTION TIMELINES</div>
-                <div style="margin-top: 2px;"><strong>Issue Timestamp:</strong> {{ $invoice->invoice_date->format('Y-m-d') }}</div>
-                <div style="margin-top: 4px;"><strong>Maturity / Due:</strong> {{ $invoice->due_date->format('Y-m-d') }}</div>
-                <div style="margin-top: 4px;"><strong>Engine Model:</strong> Clean-Grid v1.0</div>
-            </td>
-        </tr>
-    </table>
-
-    {{-- Line Items Table --}}
-    <table class="grid-data-table">
-        <thead>
+    <div class="blueprint-frame">
+        <table style="width: 100%; border-collapse: collapse; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 15px;">
             <tr>
-                <th style="width: 5%;">#</th>
-                <th style="width: 50%;">Item Description</th>
-                <th style="width: 15%; text-align: right;">Units</th>
-                <th style="width: 15%; text-align: right;">Unit Rate</th>
-                <th style="width: 15%; text-align: right;">Amount</th>
+                <td style="vertical-align: top; width: 60%;">
+                    <div style="font-size: 8px; font-weight: 900; color: #0f172a;">[CAD DRAWING / BILLING SHEET: REV-A]</div>
+                    <!-- Dedicated Logo Frame -->
+                    <div style="height: 50px; max-height: 50px; width: 180px; overflow: hidden; margin: 6px 0;">
+                        @if($invoice->logo)
+                            <img src="{{ $invoice->logo->absolutePath }}" alt="Logo" style="max-height: 46px; max-width: 175px; object-fit: contain; display: block;">
+                        @else
+                            <div style="font-size: 18px; font-weight: 900; color: #0f172a;">{{ strtoupper($invoice->user->company_name ?? $invoice->user->name) }}</div>
+                        @endif
+                    </div>
+                    <div style="color: #64748b; font-size: 10px;">OPERATOR: {{ $invoice->user->email }}</div>
+                </td>
+                <td style="vertical-align: top; width: 40%; text-align: right;">
+                    <span class="badge">{{ strtoupper($invoice->status) }}</span>
+                    <div style="font-size: 16px; font-weight: 900; color: #0f172a; margin-top: 3px;">REF: {{ $invoice->invoice_number }}</div>
+                    <div style="font-size: 10px; color: #64748b;">DATE: {{ $invoice->invoice_date->format('Y-m-d') }}</div>
+                    <div style="font-size: 10px; color: #64748b;">DUE: {{ $invoice->due_date->format('Y-m-d') }}</div>
+                </td>
             </tr>
-        </thead>
-        <tbody>
-            @foreach($invoice->items as $index => $item)
-            <tr>
-                <td style="color: #64748b;">{{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }}</td>
-                <td><strong>{{ $item->description }}</strong></td>
-                <td style="text-align: right;">{{ number_format($item->quantity, 2) }}</td>
-                <td style="text-align: right;">{{ $invoice->currency }} {{ number_format($item->unit_price, 2) }}</td>
-                <td style="text-align: right; font-weight: bold;">{{ $invoice->currency }} {{ number_format($item->amount, 2) }}</td>
-            </tr>
-            @endforeach
-        </tbody>
-    </table>
+        </table>
 
-    {{-- Bottom Box --}}
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
-        <tr>
-            <td style="vertical-align: top; padding: 14px 16px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px;">
-                <div class="section-label">03 // REMITTANCE DETAILS</div>
-                @if($invoice->payment_instructions)
-                    <div style="margin-bottom: 5px;">{{ $invoice->payment_instructions }}</div>
-                @endif
-                @if($invoice->notes)
-                    <div>{{ $invoice->notes }}</div>
-                @endif
-            </td>
-            <td style="width: 25px;"></td>
-            <td style="width: 320px; vertical-align: top;">
-                <table style="width: 100%; border-collapse: collapse; border: 2px solid #0f172a;">
-                    <tr>
-                        <td style="padding: 7px 12px; color: #64748b; border-bottom: 1px solid #cbd5e1;">Subtotal:</td>
-                        <td style="padding: 7px 12px; text-align: right; font-weight: bold; border-bottom: 1px solid #cbd5e1;">{{ $invoice->currency }} {{ number_format($invoice->subtotal, 2) }}</td>
-                    </tr>
-                    @if($invoice->discount_amount > 0)
-                    <tr>
-                        <td style="padding: 7px 12px; color: #dc2626; border-bottom: 1px solid #cbd5e1;">Discount ({{ $invoice->discount_rate }}%):</td>
-                        <td style="padding: 7px 12px; text-align: right; font-weight: bold; color: #dc2626; border-bottom: 1px solid #cbd5e1;">-{{ $invoice->currency }} {{ number_format($invoice->discount_amount, 2) }}</td>
-                    </tr>
-                    @endif
+        <!-- Client & Site Info -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 1px solid #cbd5e1; background: #f8fafc;">
+            <tr>
+                <td style="padding: 10px; width: 50%; vertical-align: top; border-right: 1px solid #cbd5e1;">
+                    <div style="font-size: 8px; font-weight: 900; color: #0f172a;">[CONTRACTOR / CLIENT]</div>
+                    <div style="font-size: 12px; font-weight: bold; margin-top: 2px;">{{ $invoice->client->name }}</div>
+                    @if($invoice->client->company_name)<div style="font-size: 10px;">{{ $invoice->client->company_name }}</div>@endif
+                    @if($invoice->client->address)<div style="font-size: 9px; color: #64748b;">{{ $invoice->client->address }}</div>@endif
+                </td>
+                <td style="padding: 10px; width: 50%; vertical-align: top;">
+                    <div style="font-size: 8px; font-weight: 900; color: #0f172a;">[SETTLEMENT INSTRUCTIONS]</div>
+                    <div style="font-size: 9px; color: #475569; margin-top: 2px;">{{ $invoice->payment_instructions ?? 'Direct settlement via ACH / Corporate wire.' }}</div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Table -->
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width: 55%;">ITEM / SCOPE OF WORK</th>
+                    <th style="width: 15%; text-align: center;">UNITS</th>
+                    <th style="width: 15%; text-align: right;">RATE</th>
+                    <th style="width: 15%; text-align: right;">NET AMOUNT</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($invoice->items as $item)
+                <tr>
+                    <td style="font-weight: 600;">{{ $item->description }}</td>
+                    <td style="text-align: center;">{{ $item->quantity }}</td>
+                    <td style="text-align: right;">{{ number_format($item->unit_price, 2) }}</td>
+                    <td style="text-align: right; font-weight: bold;">{{ number_format($item->amount, 2) }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+
+        <!-- Calculations -->
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+            <tr>
+                <td style="width: 55%; vertical-align: bottom;">
+                    <div style="border: 2px dashed #0f172a; padding: 6px; width: 180px; text-align: center;">
+                        <span style="font-size: 9px; font-weight: 900; color: #0f172a;">APPROVED FOR PAYMENT</span>
+                    </div>
+                </td>
+                <td style="width: 45%; vertical-align: top; text-align: right;">
+                    <div style="font-size: 11px;">SUBTOTAL: {{ $invoice->currency }} {{ number_format($invoice->subtotal, 2) }}</div>
                     @if($invoice->tax_amount > 0)
-                    <tr>
-                        <td style="padding: 7px 12px; color: #64748b; border-bottom: 1px solid #cbd5e1;">Tax ({{ $invoice->tax_rate }}%):</td>
-                        <td style="padding: 7px 12px; text-align: right; font-weight: bold; border-bottom: 1px solid #cbd5e1;">+{{ $invoice->currency }} {{ number_format($invoice->tax_amount, 2) }}</td>
-                    </tr>
+                    <div style="font-size: 11px; margin-top: 2px;">TAX: +{{ $invoice->currency }} {{ number_format($invoice->tax_amount, 2) }}</div>
                     @endif
-                    @if(!empty($invoice->additional_charges))
-                        @foreach($invoice->additional_charges as $charge)
-                        <tr>
-                            <td style="padding: 7px 12px; color: #64748b; border-bottom: 1px solid #cbd5e1;">{{ $charge['name'] }} ({{ $charge['type'] === 'percentage' ? $charge['value'].'%' : 'Fixed' }}):</td>
-                            <td style="padding: 7px 12px; text-align: right; font-weight: bold; border-bottom: 1px solid #cbd5e1;">+{{ $invoice->currency }} {{ number_format($charge['amount'], 2) }}</td>
-                        </tr>
-                        @endforeach
-                    @endif
-                    <tr class="grand-line">
-                        <td style="padding: 9px 12px; color: #ffffff;">TOTAL DUE:</td>
-                        <td style="padding: 9px 12px; text-align: right; color: #ffffff;">{{ $invoice->currency }} {{ number_format($invoice->total, 2) }}</td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+                    <div style="font-size: 14px; font-weight: 900; color: #0f172a; margin-top: 4px; border-top: 2px solid #0f172a; padding-top: 4px;">
+                        TOTAL: {{ $invoice->currency }} {{ number_format($invoice->total, 2) }}
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
 </body>
 </html>
 @else
-{{-- Web View: Clean Grid Style --}}
-<div class="p-4 sm:p-8 md:p-12 text-slate-900 dark:text-slate-100 font-sans">
-    <!-- Grid Header Box -->
-    <div class="border-2 border-slate-900 dark:border-slate-300 flex flex-col sm:flex-row mb-6">
-        <div class="flex-1 p-6 border-b sm:border-b-0 sm:border-r-2 border-slate-900 dark:border-slate-300">
-            @if($invoice->logo)
-                <img src="{{ $invoice->logo->url }}" alt="Logo" class="max-h-10 max-w-[140px] object-contain mb-3">
-            @endif
-            <h1 class="text-xl sm:text-2xl font-mono font-black uppercase tracking-tight text-slate-900 dark:text-white">
-                {{ $invoice->user->name }}
-            </h1>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono">{{ $invoice->user->email }}</p>
-            <div class="mt-3">
-                <span class="inline-block border border-slate-900 dark:border-slate-300 px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-widest
-                    @if($invoice->status === 'paid') bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300
-                    @elseif($invoice->status === 'sent') bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-300
-                    @elseif($invoice->status === 'overdue') bg-rose-50 text-rose-800 dark:bg-rose-950 dark:text-rose-300
-                    @else bg-slate-50 text-slate-800 dark:bg-slate-800 dark:text-slate-300 @endif">
-                    STATUS // {{ strtoupper($invoice->status) }}
+{{-- Web View: Blueprint Grid Engineering --}}
+<div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-10 border-2 border-slate-900 dark:border-slate-700 shadow-xl font-mono relative overflow-hidden">
+    
+    <!-- Crosshairs on corners -->
+    <span class="absolute top-2 left-2 text-slate-400 font-mono text-sm">+</span>
+    <span class="absolute top-2 right-2 text-slate-400 font-mono text-sm">+</span>
+    <span class="absolute bottom-2 left-2 text-slate-400 font-mono text-sm">+</span>
+    <span class="absolute bottom-2 right-2 text-slate-400 font-mono text-sm">+</span>
+
+    <!-- Top Technical Specification Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-start justify-between pb-6 border-b-2 border-slate-900 dark:border-slate-700 gap-6">
+        <div>
+            <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest block mb-2">[SPEC_CODE: DWG-INV-2026]</span>
+            <!-- Dedicated Logo Frame -->
+            <div class="invoice-logo-frame h-16 w-48 max-w-full flex items-center justify-start overflow-hidden mb-2">
+                @if($invoice->logo)
+                    <img src="{{ $invoice->logo->url }}" alt="Company Logo" class="max-h-16 max-w-full object-contain">
+                @elseif(!empty($invoice->user->logo_url))
+                    <img src="{{ $invoice->user->logo_url }}" alt="Company Logo" class="max-h-16 max-w-full object-contain">
+                @else
+                    <div class="flex items-center gap-2">
+                        <div class="w-10 h-10 border-2 border-slate-900 dark:border-white flex items-center justify-center font-black text-sm">
+                            {{ strtoupper(substr($invoice->user->company_name ?? $invoice->user->name ?? 'IH', 0, 2)) }}
+                        </div>
+                        <div>
+                            <span class="font-black text-xs text-slate-900 dark:text-white block">{{ $invoice->user->company_name ?? $invoice->user->name }}</span>
+                            <span class="text-[9px] text-slate-400">ENGINEERING BILLING</span>
+                        </div>
+                    </div>
+                @endif
+            </div>
+            <p class="text-xs text-slate-500">{{ $invoice->user->email }}</p>
+        </div>
+
+        <div class="sm:text-right space-y-1">
+            <span class="text-3xl font-black text-slate-900 dark:text-white tracking-tight block">INVOICE</span>
+            <p class="text-[11px] text-slate-400">Structured Cell Grid Ledger</p>
+            <div class="mt-2 flex items-center sm:justify-end gap-2">
+                <span class="font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-0.5 border border-slate-300 dark:border-slate-700">
+                    REF: {{ $invoice->invoice_number }}
+                </span>
+                <span class="px-2 py-0.5 text-[10px] font-bold uppercase bg-blue-600 text-white">
+                    {{ $invoice->status }}
                 </span>
             </div>
-        </div>
-        <div class="w-full sm:w-72 p-6 bg-slate-50 dark:bg-slate-800/50 font-mono text-xs space-y-1">
-            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">INVOICE STATEMENT</span>
-            <span class="text-xl font-bold text-slate-900 dark:text-white block mt-0.5">#{{ $invoice->invoice_number }}</span>
-            <p class="text-slate-600 dark:text-slate-400 pt-2"><strong class="text-slate-800 dark:text-slate-200">CURRENCY:</strong> {{ strtoupper($invoice->currency) }}</p>
+            <div class="text-xs text-slate-400 mt-1">
+                <span>DATE: {{ $invoice->invoice_date->format('Y-m-d') }}</span> | <span>DUE: {{ $invoice->due_date->format('Y-m-d') }}</span>
+            </div>
         </div>
     </div>
 
-    <!-- Sub-Box for Client & Timelines -->
-    <div class="border border-slate-300 dark:border-slate-700 flex flex-col sm:flex-row mb-6 font-mono text-xs">
-        <div class="flex-1 p-5 border-b sm:border-b-0 sm:border-r border-slate-300 dark:border-slate-700">
-            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-2">01 // CLIENT IDENTIFICATION</span>
-            <p class="font-bold text-sm text-slate-900 dark:text-white font-sans">{{ $invoice->client->name }}</p>
-            @if($invoice->client->company_name)
-                <p class="text-slate-700 dark:text-slate-300 text-xs font-sans mt-0.5">{{ $invoice->client->company_name }}</p>
-            @endif
-            @if($invoice->client->address)
-                <p class="text-slate-500 dark:text-slate-400 mt-1 font-sans text-xs">{{ $invoice->client->address }}</p>
-            @endif
-            @if($invoice->client->city || $invoice->client->country)
-                <p class="text-slate-500 dark:text-slate-400 font-sans text-xs">{{ $invoice->client->city }}{{ $invoice->client->city && $invoice->client->country ? ', ' : '' }}{{ $invoice->client->country }}</p>
-            @endif
-            @if($invoice->client->tax_id)
-                <p class="text-slate-500 pt-1">TAX ID: {{ $invoice->client->tax_id }}</p>
-            @endif
+    <!-- Client / Project Grid -->
+    <div class="my-6 grid grid-cols-1 md:grid-cols-2 gap-4 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 p-4 rounded-xl text-xs">
+        <div>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">// CLIENT_REPRESENTATIVE</span>
+            <p class="font-bold text-sm text-slate-900 dark:text-white">{{ $invoice->client->name }}</p>
+            @if($invoice->client->company_name)<p class="text-slate-600 dark:text-slate-300">{{ $invoice->client->company_name }}</p>@endif
+            @if($invoice->client->address)<p class="text-slate-500">{{ $invoice->client->address }}</p>@endif
         </div>
-
-        <div class="flex-1 p-5 space-y-1.5">
-            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-2">02 // TRANSACTION TIMELINES</span>
-            <p><strong class="text-slate-700 dark:text-slate-300">Issue Timestamp:</strong> {{ $invoice->invoice_date->format('Y-m-d') }}</p>
-            <p><strong class="text-slate-700 dark:text-slate-300">Maturity / Due:</strong> {{ $invoice->due_date->format('Y-m-d') }}</p>
-            <p class="text-slate-500"><strong class="text-slate-700 dark:text-slate-300">Engine Model:</strong> Clean-Grid v1.0</p>
+        <div class="md:text-right flex flex-col md:items-end justify-center">
+            <div class="inline-flex flex-col items-center select-none">
+    <svg class="h-8 w-40 text-slate-800 dark:text-slate-300" viewBox="0 0 160 30" fill="currentColor">
+        <rect x="0" y="0" width="3" height="28"/><rect x="5" y="0" width="2" height="28"/><rect x="9" y="0" width="4" height="28"/><rect x="16" y="0" width="2" height="28"/><rect x="21" y="0" width="3" height="28"/><rect x="27" y="0" width="6" height="28"/><rect x="36" y="0" width="2" height="28"/><rect x="41" y="0" width="4" height="28"/><rect x="48" y="0" width="3" height="28"/><rect x="54" y="0" width="5" height="28"/><rect x="62" y="0" width="2" height="28"/><rect x="67" y="0" width="4" height="28"/><rect x="74" y="0" width="3" height="28"/><rect x="80" y="0" width="6" height="28"/><rect x="89" y="0" width="2" height="28"/><rect x="94" y="0" width="5" height="28"/><rect x="102" y="0" width="3" height="28"/><rect x="108" y="0" width="4" height="28"/><rect x="115" y="0" width="2" height="28"/><rect x="120" y="0" width="6" height="28"/><rect x="129" y="0" width="3" height="28"/><rect x="135" y="0" width="4" height="28"/><rect x="142" y="0" width="2" height="28"/><rect x="147" y="0" width="5" height="28"/><rect x="155" y="0" width="3" height="28"/>
+    </svg>
+    <span class="font-mono text-[9px] text-slate-400 tracking-widest mt-0.5">AUTH-VERIFIED</span>
+</div>
         </div>
     </div>
 
-    <!-- Grid Data Table -->
-    <div class="overflow-x-auto mb-6">
-        <table class="w-full text-left border-2 border-slate-900 dark:border-slate-300 font-mono text-xs">
-            <thead class="bg-slate-900 text-white dark:bg-slate-800 text-[11px] font-bold uppercase tracking-wider">
+    <!-- Engineering Boxed Grid Table -->
+    <div class="my-6 overflow-x-auto">
+        <table class="w-full text-left text-xs border border-slate-200 dark:border-slate-700">
+            <thead class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold uppercase border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                    <th class="p-3 w-12 text-center border-r border-slate-700">#</th>
-                    <th class="p-3 border-r border-slate-700">Item Description</th>
-                    <th class="p-3 text-right border-r border-slate-700 w-24">Units</th>
-                    <th class="p-3 text-right border-r border-slate-700 w-32">Unit Rate</th>
-                    <th class="p-3 text-right w-36">Amount</th>
+                    <th class="py-2.5 px-3 border-r border-slate-200 dark:border-slate-700">ITEM SPECIFICATION</th>
+                    <th class="py-2.5 px-3 text-center border-r border-slate-200 dark:border-slate-700 w-20">UNITS</th>
+                    <th class="py-2.5 px-3 text-right border-r border-slate-200 dark:border-slate-700 w-32">RATE</th>
+                    <th class="py-2.5 px-3 text-right w-36">AMOUNT</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-300 dark:divide-slate-700">
-                @foreach($invoice->items as $index => $item)
-                <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                    <td class="p-3 text-center border-r border-slate-300 dark:border-slate-700 text-slate-500">{{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }}</td>
-                    <td class="p-3 border-r border-slate-300 dark:border-slate-700 font-sans font-medium text-slate-900 dark:text-white">{{ $item->description }}</td>
-                    <td class="p-3 text-right border-r border-slate-300 dark:border-slate-700">{{ number_format($item->quantity, 2) }}</td>
-                    <td class="p-3 text-right border-r border-slate-300 dark:border-slate-700">{{ $invoice->currency }} {{ number_format($item->unit_price, 2) }}</td>
-                    <td class="p-3 text-right font-bold text-slate-900 dark:text-white">{{ $invoice->currency }} {{ number_format($item->amount, 2) }}</td>
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                @foreach($invoice->items as $item)
+                <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                    <td class="py-3 px-3 font-semibold text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-700">{{ $item->description }}</td>
+                    <td class="py-3 px-3 text-center text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700">{{ $item->quantity }}</td>
+                    <td class="py-3 px-3 text-right text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700">{{ $invoice->currency }} {{ number_format($item->unit_price, 2) }}</td>
+                    <td class="py-3 px-3 text-right font-bold text-slate-900 dark:text-white">{{ $invoice->currency }} {{ number_format($item->amount, 2) }}</td>
                 </tr>
                 @endforeach
             </tbody>
         </table>
     </div>
 
-    <!-- Bottom Wrap: Remittance + Totals -->
-    <div class="flex flex-col sm:flex-row gap-6 items-stretch font-mono text-xs">
-        <div class="flex-1 border border-slate-300 dark:border-slate-700 p-5 bg-slate-50 dark:bg-slate-800/50">
-            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-2">03 // REMITTANCE DETAILS</span>
-            @if($invoice->payment_instructions)
-                <p class="text-slate-700 dark:text-slate-300 mb-2">{{ $invoice->payment_instructions }}</p>
-            @endif
-            @if($invoice->notes)
-                <p class="text-slate-500">{{ $invoice->notes }}</p>
-            @endif
+    <!-- Bottom Hazard/Engineering Total Bar -->
+    <div class="pt-6 border-t-2 border-slate-900 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-4">
+            <div class="inline-flex flex-col items-center p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs">
+    <svg class="w-14 h-14" viewBox="0 0 45 45" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="45" height="45" fill="white"/>
+        <rect x="2" y="2" width="13" height="13" stroke="#0f172a" stroke-width="3" fill="none"/>
+        <rect x="5" y="5" width="7" height="7" fill="#0f172a"/>
+        <rect x="30" y="2" width="13" height="13" stroke="#0f172a" stroke-width="3" fill="none"/>
+        <rect x="33" y="5" width="7" height="7" fill="#0f172a"/>
+        <rect x="2" y="30" width="13" height="13" stroke="#0f172a" stroke-width="3" fill="none"/>
+        <rect x="5" y="33" width="7" height="7" fill="#0f172a"/>
+        <rect x="18" y="4" width="3" height="3" fill="#0f172a"/>
+        <rect x="24" y="4" width="3" height="3" fill="#0f172a"/>
+        <rect x="18" y="10" width="3" height="3" fill="#0f172a"/>
+        <rect x="24" y="10" width="3" height="3" fill="#0f172a"/>
+        <rect x="18" y="18" width="9" height="9" fill="#0f172a"/>
+        <rect x="31" y="20" width="3" height="3" fill="#0f172a"/>
+        <rect x="37" y="20" width="3" height="3" fill="#0f172a"/>
+        <rect x="18" y="31" width="3" height="3" fill="#0f172a"/>
+        <rect x="24" y="37" width="3" height="3" fill="#0f172a"/>
+        <rect x="31" y="31" width="8" height="8" fill="#0f172a"/>
+    </svg>
+    <span class="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1">Scan to Verify</span>
+</div>
+            <div class="border-2 border-dashed border-slate-400 p-2 text-center text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                APPROVED FOR PAYMENT
+            </div>
         </div>
 
-        <div class="w-full sm:w-80 border-2 border-slate-900 dark:border-slate-300">
-            <div class="flex justify-between p-2.5 border-b border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400">
-                <span>Subtotal:</span>
-                <span class="font-bold text-slate-900 dark:text-white">{{ $invoice->currency }} {{ number_format($invoice->subtotal, 2) }}</span>
+        <div class="w-full sm:w-72 border-2 border-slate-900 dark:border-slate-600 p-4 space-y-2 text-xs bg-slate-50 dark:bg-slate-800">
+            <div class="flex justify-between text-slate-500">
+                <span>SUBTOTAL:</span>
+                <span class="font-bold text-slate-800 dark:text-slate-200">{{ $invoice->currency }} {{ number_format($invoice->subtotal, 2) }}</span>
             </div>
-            @if($invoice->discount_amount > 0)
-            <div class="flex justify-between p-2.5 border-b border-slate-300 dark:border-slate-700 text-rose-600 dark:text-rose-400">
-                <span>Discount ({{ $invoice->discount_rate }}%):</span>
-                <span>-{{ $invoice->currency }} {{ number_format($invoice->discount_amount, 2) }}</span>
-            </div>
-            @endif
             @if($invoice->tax_amount > 0)
-            <div class="flex justify-between p-2.5 border-b border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400">
-                <span>Tax ({{ $invoice->tax_rate }}%):</span>
-                <span>+{{ $invoice->currency }} {{ number_format($invoice->tax_amount, 2) }}</span>
+            <div class="flex justify-between text-slate-500">
+                <span>TAX LEVY:</span>
+                <span class="font-bold">+{{ $invoice->currency }} {{ number_format($invoice->tax_amount, 2) }}</span>
             </div>
             @endif
-            @if(!empty($invoice->additional_charges))
-                @foreach($invoice->additional_charges as $charge)
-                <div class="flex justify-between p-2.5 border-b border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400">
-                    <span>{{ $charge['name'] }} ({{ $charge['type'] === 'percentage' ? $charge['value'].'%' : 'Fixed' }}):</span>
-                    <span>+{{ $invoice->currency }} {{ number_format($charge['amount'], 2) }}</span>
-                </div>
-                @endforeach
-            @endif
-            <div class="flex justify-between p-3.5 bg-slate-900 text-white dark:bg-slate-800 font-bold text-sm">
-                <span>TOTAL DUE:</span>
-                <span>{{ $invoice->currency }} {{ number_format($invoice->total, 2) }}</span>
+            <div class="pt-2 border-t-2 border-slate-900 dark:border-slate-600 flex justify-between items-baseline text-sm">
+                <span class="font-black text-slate-900 dark:text-white">NET BALANCE:</span>
+                <span class="text-xl font-black text-blue-600 dark:text-blue-400">{{ $invoice->currency }} {{ number_format($invoice->total, 2) }}</span>
             </div>
         </div>
     </div>

@@ -73,6 +73,46 @@
                 </tr>
             </table>
 
+            <!-- Client Portal Credentials Section -->
+            @if($invoice->client && $invoice->client->email)
+            <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 18px 20px; margin: 25px 0; text-align: left;">
+                <div style="font-size: 13px; font-weight: 800; color: #1e40af; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+                    🔑 Your Client Portal Credentials
+                </div>
+                <p style="font-size: 12px; color: #3b82f6; margin: 0 0 12px 0;">
+                    You have a secure online portal to view invoices, download payment receipts, accept proposals, and track your account balance at any time.
+                </p>
+                <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                    <tr>
+                        <td style="color: #64748b; padding: 4px 0; width: 120px;"><strong>Portal Link:</strong></td>
+                        <td style="padding: 4px 0;"><a href="{{ route('portal.login') }}" style="color: #2563eb; font-weight: 700; text-decoration: underline;">{{ route('portal.login') }}</a></td>
+                    </tr>
+                    <tr>
+                        <td style="color: #64748b; padding: 4px 0;"><strong>Username:</strong></td>
+                        <td style="color: #0f172a; font-weight: 600; padding: 4px 0;">{{ $invoice->client->email }}</td>
+                    </tr>
+                    @if(!empty($tempPassword) || (!empty($invoice->client->temp_password)))
+                    <tr>
+                        <td style="color: #64748b; padding: 4px 0;"><strong>Initial Password:</strong></td>
+                        <td style="padding: 4px 0;">
+                            <span style="font-family: monospace; font-size: 13px; font-weight: 700; background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1; color: #0f172a;">
+                                {{ $tempPassword ?: $invoice->client->temp_password }}
+                            </span>
+                            <span style="font-size: 11px; color: #64748b; margin-left: 6px;">(You will be asked to choose your own password upon first login)</span>
+                        </td>
+                    </tr>
+                    @else
+                    <tr>
+                        <td style="color: #64748b; padding: 4px 0;"><strong>Password:</strong></td>
+                        <td style="color: #64748b; font-style: italic; padding: 4px 0;">
+                            Use your existing password, or request a passwordless login link on the portal.
+                        </td>
+                    </tr>
+                    @endif
+                </table>
+            </div>
+            @endif
+
             <p style="font-size: 12px; color: #64748b; margin-top: 20px;">
                 📎 A copy of the PDF invoice has been attached to this email for your accounting records.
             </p>

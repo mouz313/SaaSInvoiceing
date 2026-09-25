@@ -45,12 +45,9 @@ class PaymentReceiptMail extends Mailable
      */
     public function attachments(): array
     {
-        $viewName = match ($this->invoice->style) {
-            'corporate' => 'invoices.templates.corporate',
-            'creative' => 'invoices.templates.creative',
-            'grid' => 'invoices.templates.grid',
-            default => 'invoices.templates.minimalist',
-        };
+        $viewName = view()->exists("invoices.templates.{$this->invoice->style}")
+            ? "invoices.templates.{$this->invoice->style}"
+            : 'invoices.templates.minimalist';
 
         $pdf = Pdf::loadView($viewName, [
             'invoice' => $this->invoice,

@@ -15,6 +15,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ClientController extends Controller
@@ -58,7 +59,12 @@ class ClientController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'email' => [
+                'nullable',
+                'email',
+                'max:255',
+                Rule::unique('clients')->where(fn ($q) => $q->where('user_id', Auth::id())),
+            ],
             'phone' => ['nullable', 'string', 'max:50'],
             'company_name' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string'],
@@ -68,7 +74,14 @@ class ClientController extends Controller
             'country' => ['required', 'string', 'max:100'],
             'tax_id' => ['nullable', 'string', 'max:100'],
             'currency' => ['nullable', 'string', 'max:10'],
+            'password' => ['nullable', 'string', 'min:6'],
         ]);
+
+        if (! empty($validated['password'])) {
+            $validated['must_change_password'] = true;
+        } else {
+            unset($validated['password']);
+        }
 
         Auth::user()->clients()->create($validated);
 
@@ -98,7 +111,12 @@ class ClientController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'email' => [
+                'nullable',
+                'email',
+                'max:255',
+                Rule::unique('clients')->where(fn ($q) => $q->where('user_id', Auth::id()))->ignore($client->id),
+            ],
             'phone' => ['nullable', 'string', 'max:50'],
             'company_name' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string'],
@@ -108,7 +126,14 @@ class ClientController extends Controller
             'country' => ['required', 'string', 'max:100'],
             'tax_id' => ['nullable', 'string', 'max:100'],
             'currency' => ['nullable', 'string', 'max:10'],
+            'password' => ['nullable', 'string', 'min:6'],
         ]);
+
+        if (! empty($validated['password'])) {
+            $validated['must_change_password'] = true;
+        } else {
+            unset($validated['password']);
+        }
 
         $client->update($validated);
 

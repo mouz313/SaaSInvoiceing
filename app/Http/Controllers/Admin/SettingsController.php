@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -52,6 +53,21 @@ class SettingsController extends Controller
                 'firebase_app_id' => $allSettings['firebase_app_id']->value ?? '',
                 'firebase_measurement_id' => $allSettings['firebase_measurement_id']->value ?? '',
             ],
+            'cron' => [
+                'cron_recurring_enabled' => Setting::get('cron_recurring_enabled', true),
+                'cron_recurring_time' => Setting::get('cron_recurring_time', '06:00'),
+                'cron_reminders_enabled' => Setting::get('cron_reminders_enabled', true),
+                'cron_reminders_time' => Setting::get('cron_reminders_time', '08:00'),
+                'cron_reminder_upcoming_days' => (int) Setting::get('cron_reminder_upcoming_days', 3),
+                'cron_reminder_overdue_interval' => (int) Setting::get('cron_reminder_overdue_interval', 3),
+                'cron_last_heartbeat_at' => Setting::get('cron_last_heartbeat_at', ''),
+                'cron_last_recurring_run_at' => Setting::get('cron_last_recurring_run_at', ''),
+                'cron_last_recurring_result' => Setting::get('cron_last_recurring_result', ''),
+                'cron_last_reminders_run_at' => Setting::get('cron_last_reminders_run_at', ''),
+                'cron_last_reminders_result' => Setting::get('cron_last_reminders_result', ''),
+                'cron_secret_token' => Setting::get('cron_secret_token') ?: tap(Str::random(32), fn ($t) => Setting::set('cron_secret_token', $t, 'cron', 'string')),
+                'cron_last_web_run_at' => Setting::get('cron_last_web_run_at', ''),
+            ],
         ];
 
         return view('admin.settings.index', compact('grouped', 'activeTab'));
@@ -97,10 +113,23 @@ class SettingsController extends Controller
                 'firebase_app_id' => ['required', 'string', 'max:255'],
                 'firebase_measurement_id' => ['nullable', 'string', 'max:255'],
             ],
+            'cron' => [
+                'cron_recurring_enabled' => ['nullable', 'boolean'],
+                'cron_recurring_time' => ['required', 'string', 'regex:/^\d{2}:\d{2}$/'],
+                'cron_reminders_enabled' => ['nullable', 'boolean'],
+                'cron_reminders_time' => ['required', 'string', 'regex:/^\d{2}:\d{2}$/'],
+                'cron_reminder_upcoming_days' => ['required', 'integer', 'min:1', 'max:30'],
+                'cron_reminder_overdue_interval' => ['required', 'integer', 'min:1', 'max:30'],
+            ],
             default => [],
         };
 
         $validated = $request->validate($rules);
+
+        if ($group === 'cron') {
+            $validated['cron_recurring_enabled'] = $request->boolean('cron_recurring_enabled');
+            $validated['cron_reminders_enabled'] = $request->boolean('cron_reminders_enabled');
+        }
 
         if ($group === 'general') {
             if ($request->boolean('remove_logo')) {
@@ -153,12 +182,61 @@ class SettingsController extends Controller
         }
 
         foreach ($validated as $key => $value) {
-            Setting::set($key, $value, $group);
+            $type = is_bool($value) ? 'boolean' : (is_int($value) ? 'integer' : 'string');
+            Setting::set($key, $value, $group, $type);
         }
 
         Setting::purgeCache();
 
         return redirect()->route('admin.settings.index', ['tab' => $group])
             ->with('success', ucfirst($group).' settings have been updated successfully.');
+    }
+
+    public function runCronTask(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'task' => ['required', 'in:recurring,reminders,all'],
+        ]);
+
+        $task = $request->input('task');
+
+        try {
+            switch ($task) {
+                case 'recurring':
+                    Artisan::call('invoices:process-recurring');
+                    $output = Artisan::output();
+                    $message = 'Recurring Invoices task executed: '.trim($output);
+                    break;
+                case 'reminders':
+                    Artisan::call('invoices:send-reminders');
+                    $output = Artisan::output();
+                    $message = 'Payment Reminders task executed: '.trim($output);
+                    break;
+                case 'all':
+                default:
+                    Artisan::call('schedule:run');
+                    $output = Artisan::output();
+                    $message = 'Scheduler executed: '.($output ? trim($output) : 'All cron tasks checked. No pending tasks at this moment.');
+                    break;
+            }
+
+            Setting::set('cron_last_heartbeat_at', now()->toDateTimeString(), 'cron', 'string');
+
+            return redirect()->route('admin.settings.index', ['tab' => 'cron'])
+                ->with('success', $message);
+        } catch (\Throwable $e) {
+            return redirect()->route('admin.settings.index', ['tab' => 'cron'])
+                ->with('error', 'Cron execution failed: '.$e->getMessage());
+        }
+    }
+
+    public function regenerateCronToken(Request $request): RedirectResponse
+    {
+        $newToken = Str::random(32);
+        Setting::set('cron_secret_token', $newToken, 'cron', 'string');
+        Setting::purgeCache();
+
+        return redirect()->route('admin.settings.index', ['tab' => 'cron'])
+            ->with('success', 'Web Cron Secret Key has been successfully regenerated.');
     }
 }

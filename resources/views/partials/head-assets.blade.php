@@ -35,6 +35,9 @@
 @endif
 
 <style>
+    [x-cloak] {
+        display: none !important;
+    }
     /* Robust fallback for gradients against compiled Tailwind resets */
     .bg-gradient-to-r.from-blue-600.to-indigo-700,
     .bg-gradient-to-r.from-blue-600.to-indigo-600,

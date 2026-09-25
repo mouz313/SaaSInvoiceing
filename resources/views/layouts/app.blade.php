@@ -112,6 +112,17 @@
                             Create Invoice
                         </a>
 
+                        <a href="{{ route('templates.index') }}" 
+                           class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('templates.*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="palette" class="w-4 h-4"></i>
+                                Template Store
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ request()->routeIs('templates.*') ? 'bg-white/20 text-white' : 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300' }}">
+                                25 Themes
+                            </span>
+                        </a>
+
                         <a href="{{ route('estimates.index') }}" 
                            class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('estimates.*') ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                             <div class="flex items-center gap-3">

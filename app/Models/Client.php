@@ -11,6 +11,8 @@ use Illuminate\Support\Str;
 
 class Client extends Model
 {
+    public ?string $temp_password = null;
+
     protected $fillable = [
         'user_id',
         'name',
@@ -27,6 +29,7 @@ class Client extends Model
         'portal_access_token',
         'portal_token_expires_at',
         'password',
+        'must_change_password',
     ];
 
     protected $hidden = [
@@ -38,6 +41,7 @@ class Client extends Model
         return [
             'password' => 'hashed',
             'portal_token_expires_at' => 'datetime',
+            'must_change_password' => 'boolean',
         ];
     }
 
@@ -51,7 +55,25 @@ class Client extends Model
             if (empty($client->currency)) {
                 $client->currency = 'USD';
             }
+            if (! empty($client->email) && empty($client->password)) {
+                $tempPassword = 'Pass'.rand(1000, 9999).Str::random(2);
+                $client->temp_password = $tempPassword;
+                $client->password = $tempPassword;
+                $client->must_change_password = true;
+            }
         });
+    }
+
+    public function generateTemporaryPassword(): string
+    {
+        $tempPassword = 'Pass'.rand(1000, 9999).Str::random(2);
+        $this->temp_password = $tempPassword;
+        $this->update([
+            'password' => $tempPassword,
+            'must_change_password' => true,
+        ]);
+
+        return $tempPassword;
     }
 
     public function user(): BelongsTo

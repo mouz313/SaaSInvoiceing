@@ -38,12 +38,9 @@ class PublicInvoiceController extends Controller
             ->where('public_token', $token)
             ->firstOrFail();
 
-        $viewName = match ($invoice->style) {
-            'corporate' => 'invoices.templates.corporate',
-            'creative' => 'invoices.templates.creative',
-            'grid' => 'invoices.templates.grid',
-            default => 'invoices.templates.minimalist',
-        };
+        $viewName = view()->exists("invoices.templates.{$invoice->style}")
+            ? "invoices.templates.{$invoice->style}"
+            : 'invoices.templates.minimalist';
 
         $pdf = Pdf::loadView($viewName, [
             'invoice' => $invoice,

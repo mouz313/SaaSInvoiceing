@@ -32,7 +32,10 @@ class ClientPortalController extends Controller
                 ->with('error', 'This portal access link has expired. Please request a new magic link below.');
         }
 
-        session(['portal_client_id' => $client->id]);
+        session([
+            'portal_client_id' => $client->id,
+            'portal_token_authenticated' => true,
+        ]);
 
         return redirect()->route('portal.dashboard')
             ->with('success', "Welcome to your Client Portal, {$client->name}!");
@@ -62,6 +65,11 @@ class ClientPortalController extends Controller
         if ($request->filled('password')) {
             if ($client->password && Hash::check($request->password, $client->password)) {
                 $request->session()->put('portal_client_id', $client->id);
+
+                if ($client->must_change_password) {
+                    return redirect()->route('portal.change-password')
+                        ->with('info', 'Please set your private portal password to continue.');
+                }
 
                 return redirect()->route('portal.dashboard')
                     ->with('success', "Welcome back, {$client->name}!");
@@ -280,5 +288,31 @@ class ClientPortalController extends Controller
             ],
             default => [now()->startOfYear(), now()->endOfDay()],
         };
+    }
+
+    public function showChangePassword(Request $request): View
+    {
+        /** @var Client $client */
+        $client = $request->attributes->get('portalClient');
+
+        return view('portal.change-password', compact('client'));
+    }
+
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        /** @var Client $client */
+        $client = $request->attributes->get('portalClient');
+
+        $request->validate([
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $client->update([
+            'password' => $request->password,
+            'must_change_password' => false,
+        ]);
+
+        return redirect()->route('portal.dashboard')
+            ->with('success', 'Your password has been successfully updated! Welcome to your Client Portal.');
     }
 }
