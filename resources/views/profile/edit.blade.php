@@ -5,7 +5,7 @@
 @section('content')
 <div class="max-w-5xl mx-auto space-y-8 pb-16"
      x-data="{ 
-        activeTab: '{{ session('active_tab', $errors->hasAny(['current_password', 'password', 'password_confirmation']) ? 'security' : ($errors->hasAny(['company_name', 'tax_id', 'address', 'city', 'country']) ? 'business' : ($errors->hasAny(['default_currency', 'default_payment_instructions', 'default_notes']) ? 'invoicing' : 'personal'))) }}',
+        activeTab: '{{ request()->query('tab', session('active_tab', $errors->hasAny(['bank_name', 'bank_account_number', 'bank_iban', 'raast_id', 'jazzcash_number', 'easypaisa_number']) ? 'payments' : ($errors->hasAny(['current_password', 'password', 'password_confirmation']) ? 'security' : ($errors->hasAny(['company_name', 'tax_id', 'address', 'city', 'country']) ? 'business' : ($errors->hasAny(['default_currency', 'default_payment_instructions', 'default_notes']) ? 'invoicing' : 'personal'))))) }}',
         avatarPreview: null,
         removeAvatar: false,
         previewImage(event) {
@@ -111,6 +111,19 @@
                 class="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition">
             <i data-lucide="building-2" class="w-4 h-4"></i>
             Business & Company
+        </button>
+
+        <button type="button" 
+                @click="activeTab = 'payments'"
+                :class="activeTab === 'payments' 
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' 
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'"
+                class="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition">
+            <i data-lucide="wallet" class="w-4 h-4 text-emerald-400"></i>
+            <span>Payment Methods & Accounts</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                PK Wallets
+            </span>
         </button>
 
         <button type="button" 
@@ -277,9 +290,30 @@
 
                 <!-- Tax ID / VAT -->
                 <div>
-                    <label for="biz_tax_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Tax Registration / VAT / NTN</label>
+                    <label for="biz_tax_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">General Tax ID / VAT</label>
                     <input type="text" name="tax_id" id="biz_tax_id" value="{{ old('tax_id', $user->tax_id) }}" placeholder="e.g. US-12345678 or VAT-GB998877" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                     @error('tax_id')<p class="text-xs text-rose-500 mt-1 font-medium">{{ $message }}</p>@enderror
+                </div>
+
+                <!-- NTN (FBR National Tax Number) -->
+                <div>
+                    <label for="biz_ntn" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">FBR NTN (National Tax Number)</label>
+                    <input type="text" name="ntn" id="biz_ntn" value="{{ old('ntn', $user->ntn) }}" placeholder="e.g. 1234567-8" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    @error('ntn')<p class="text-xs text-rose-500 mt-1 font-medium">{{ $message }}</p>@enderror
+                </div>
+
+                <!-- STRN (Sales Tax Registration Number) -->
+                <div>
+                    <label for="biz_strn" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">STRN (Sales Tax Reg Number)</label>
+                    <input type="text" name="strn" id="biz_strn" value="{{ old('strn', $user->strn) }}" placeholder="e.g. 12-00-1234-567-89" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    @error('strn')<p class="text-xs text-rose-500 mt-1 font-medium">{{ $message }}</p>@enderror
+                </div>
+
+                <!-- CNIC / National ID -->
+                <div>
+                    <label for="biz_cnic" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">CNIC / National Identity Card</label>
+                    <input type="text" name="cnic" id="biz_cnic" value="{{ old('cnic', $user->cnic) }}" placeholder="e.g. 35201-1234567-1" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    @error('cnic')<p class="text-xs text-rose-500 mt-1 font-medium">{{ $message }}</p>@enderror
                 </div>
 
                 <!-- Street Address -->
@@ -353,16 +387,186 @@
 
             <div>
                 <label for="inv_default_notes" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">Default Terms, Conditions & Notes</label>
-                <textarea name="default_notes" id="inv_default_notes" rows="3" placeholder="e.g. Thank you for choosing our services! Please pay within 14 days of invoice date." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition">{{ old('default_notes', $user->default_notes) }}</textarea>
+                <textarea name="default_notes" id="inv_default_notes" rows="2" placeholder="e.g. Thank you for choosing our services! Please pay within 14 days of invoice date." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition">{{ old('default_notes', $user->default_notes) }}</textarea>
                 @error('default_notes')<p class="text-xs text-rose-500 mt-1 font-medium">{{ $message }}</p>@enderror
+            </div>
+
+            <!-- Footer Save Invoicing -->
+            <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <input type="hidden" name="redirect_tab" value="invoicing">
+                <span class="text-xs text-slate-400">Pre-fills new invoices automatically.</span>
+                <button type="submit" class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/20 transition flex items-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    Save Invoicing Defaults
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- SECTION: Payment Methods & Accounts (Saves Independently) -->
+    <div x-show="activeTab === 'payments'" x-cloak class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-5 gap-2">
+            <div>
+                <h2 class="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2.5">
+                    <i data-lucide="wallet" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                    Payment Methods & Accounts
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Configure your Pakistani Bank accounts (IBFT), Raast ID, and Mobile Wallets (JazzCash & EasyPaisa). These payment options are displayed to clients on public invoices.</p>
+            </div>
+            <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded-full w-fit">
+                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                Active on Invoices
+            </span>
+        </div>
+
+        <form method="POST" action="{{ route('profile.payments') }}" class="space-y-6">
+            @csrf
+            @method('PUT')
+            <input type="hidden" name="redirect_tab" value="payments">
+
+            <!-- Pakistani Local Bank & Raast Transfer (IBFT) -->
+            <div class="space-y-4">
+                <div class="flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black text-xs">
+                        <i data-lucide="building" class="w-4 h-4"></i>
+                    </span>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white">Bank Transfer / IBFT & Raast Account</h3>
+                        <p class="text-xs text-slate-400">Display your bank details on the public invoice view for direct client bank transfers.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="bank_name" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">Bank Name</label>
+                        <input type="text" name="bank_name" id="bank_name" value="{{ old('bank_name', $user->bank_name) }}" placeholder="e.g. Meezan Bank / HBL / Bank Alfalah" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition">
+                        @error('bank_name')<p class="text-xs text-rose-500 mt-1">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div>
+                        <label for="bank_account_title" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">Account Title</label>
+                        <input type="text" name="bank_account_title" id="bank_account_title" value="{{ old('bank_account_title', $user->bank_account_title) }}" placeholder="e.g. Acme Tech Solutions" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition">
+                        @error('bank_account_title')<p class="text-xs text-rose-500 mt-1">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div>
+                        <label for="bank_account_number" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">Account Number</label>
+                        <input type="text" name="bank_account_number" id="bank_account_number" value="{{ old('bank_account_number', $user->bank_account_number) }}" placeholder="e.g. 01010101234567" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition">
+                        @error('bank_account_number')<p class="text-xs text-rose-500 mt-1">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div>
+                        <label for="bank_iban" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">IBAN</label>
+                        <input type="text" name="bank_iban" id="bank_iban" value="{{ old('bank_iban', $user->bank_iban) }}" placeholder="e.g. PK36MEZN0001234567890123" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition">
+                        @error('bank_iban')<p class="text-xs text-rose-500 mt-1">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label for="raast_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">Raast ID (Instant 0-Fee Transfer)</label>
+                        <input type="text" name="raast_id" id="raast_id" value="{{ old('raast_id', $user->raast_id) }}" placeholder="e.g. 03001234567 or Raast IBAN" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition">
+                        @error('raast_id')<p class="text-xs text-rose-500 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Wallets (JazzCash & EasyPaisa Direct Numbers) -->
+            <div class="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                <div class="flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center font-black text-xs">
+                        <i data-lucide="smartphone" class="w-4 h-4"></i>
+                    </span>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white">Mobile Wallets (JazzCash & EasyPaisa)</h3>
+                        <p class="text-xs text-slate-400">Clients can transfer directly from their JazzCash or EasyPaisa apps to your number.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="jazzcash_number" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">JazzCash Mobile Number</label>
+                        <input type="text" name="jazzcash_number" id="jazzcash_number" value="{{ old('jazzcash_number', $user->jazzcash_number) }}" placeholder="e.g. 03001234567" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition">
+                        @error('jazzcash_number')<p class="text-xs text-rose-500 mt-1">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div>
+                        <label for="jazzcash_title" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">JazzCash Account Title</label>
+                        <input type="text" name="jazzcash_title" id="jazzcash_title" value="{{ old('jazzcash_title', $user->jazzcash_title) }}" placeholder="e.g. Muhammad Ali" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition">
+                        @error('jazzcash_title')<p class="text-xs text-rose-500 mt-1">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div>
+                        <label for="easypaisa_number" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">EasyPaisa Mobile Number</label>
+                        <input type="text" name="easypaisa_number" id="easypaisa_number" value="{{ old('easypaisa_number', $user->easypaisa_number) }}" placeholder="e.g. 03451234567" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition">
+                        @error('easypaisa_number')<p class="text-xs text-rose-500 mt-1">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div>
+                        <label for="easypaisa_title" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">EasyPaisa Account Title</label>
+                        <input type="text" name="easypaisa_title" id="easypaisa_title" value="{{ old('easypaisa_title', $user->easypaisa_title) }}" placeholder="e.g. Muhammad Ali" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition">
+                        @error('easypaisa_title')<p class="text-xs text-rose-500 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                </div>
+            </div>
+
+            <!-- Automated Gateway Credentials (Optional) -->
+            <div class="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4" x-data="{ openGateways: false }">
+                <div class="flex items-center justify-between cursor-pointer" @click="openGateways = !openGateways">
+                    <div class="flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-xs">
+                            <i data-lucide="key-round" class="w-4 h-4"></i>
+                        </span>
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                Automated Merchant API Gateways (Optional)
+                                <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">Advanced</span>
+                            </h3>
+                            <p class="text-xs text-slate-400">Integrate direct automated checkout via your JazzCash / EasyPaisa merchant credentials.</p>
+                        </div>
+                    </div>
+                    <button type="button" class="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline" x-text="openGateways ? 'Hide Credentials' : 'Show Credentials'"></button>
+                </div>
+
+                <div x-show="openGateways" x-cloak class="space-y-4 pt-2">
+                    <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-3">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">JazzCash Merchant Credentials</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Merchant ID</label>
+                                <input type="text" name="jazzcash_merchant_id" value="{{ old('jazzcash_merchant_id', $user->jazzcash_merchant_id) }}" placeholder="MC12345" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Password</label>
+                                <input type="password" name="jazzcash_password" placeholder="{{ $user->jazzcash_password ? '••••••••' : 'Password' }}" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Hash Key</label>
+                                <input type="password" name="jazzcash_hash_key" placeholder="{{ $user->jazzcash_hash_key ? '••••••••' : 'Integrity Salt' }}" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-3">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">EasyPaisa Merchant Credentials</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Store ID</label>
+                                <input type="text" name="easypaisa_store_id" value="{{ old('easypaisa_store_id', $user->easypaisa_store_id) }}" placeholder="Store ID" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Hash Key / Secret</label>
+                                <input type="password" name="easypaisa_hash_key" placeholder="{{ $user->easypaisa_hash_key ? '••••••••' : 'Secret Key' }}" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Footer Save -->
             <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <span class="text-xs text-slate-400">Pre-fills new invoices automatically.</span>
+                <span class="text-xs text-slate-400">Clients can transfer payments directly into these accounts.</span>
                 <button type="submit" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-600/20 transition flex items-center gap-2">
                     <i data-lucide="save" class="w-4 h-4"></i>
-                    Save Invoicing Defaults
+                    Save Payment Methods
                 </button>
             </div>
         </form>

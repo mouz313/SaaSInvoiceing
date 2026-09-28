@@ -73,6 +73,9 @@ class ClientController extends Controller
             'postal_code' => ['nullable', 'string', 'max:20'],
             'country' => ['required', 'string', 'max:100'],
             'tax_id' => ['nullable', 'string', 'max:100'],
+            'ntn' => ['nullable', 'string', 'max:50'],
+            'strn' => ['nullable', 'string', 'max:50'],
+            'cnic' => ['nullable', 'string', 'max:50'],
             'currency' => ['nullable', 'string', 'max:10'],
             'password' => ['nullable', 'string', 'min:6'],
         ]);
@@ -125,6 +128,9 @@ class ClientController extends Controller
             'postal_code' => ['nullable', 'string', 'max:20'],
             'country' => ['required', 'string', 'max:100'],
             'tax_id' => ['nullable', 'string', 'max:100'],
+            'ntn' => ['nullable', 'string', 'max:50'],
+            'strn' => ['nullable', 'string', 'max:50'],
+            'cnic' => ['nullable', 'string', 'max:50'],
             'currency' => ['nullable', 'string', 'max:10'],
             'password' => ['nullable', 'string', 'min:6'],
         ]);

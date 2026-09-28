@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Stripe\Checkout\Session;
 use Stripe\Stripe;
@@ -161,5 +162,51 @@ class PublicInvoiceController extends Controller
         }
 
         return view('invoices.public_success', compact('invoice'));
+    }
+
+    /**
+     * Client submits manual payment proof (Bank transfer / Raast / JazzCash / EasyPaisa TRX).
+     */
+    public function submitProof(Request $request, string $token): RedirectResponse
+    {
+        $invoice = Invoice::with(['client', 'user'])
+            ->where('public_token', $token)
+            ->firstOrFail();
+
+        $maxAmount = (float) ($invoice->balance_due ?? $invoice->total);
+
+        $validated = $request->validate([
+            'payment_method' => ['required', 'string', 'in:bank_transfer,raast,jazzcash,easypaisa,other'],
+            'reference_number' => ['required', 'string', 'max:100'],
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:'.($maxAmount > 0 ? $maxAmount : 999999999)],
+            'notes' => ['nullable', 'string', 'max:500'],
+            'proof_file' => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp,pdf', 'max:5120'],
+        ]);
+
+        $proofPath = null;
+        if ($request->hasFile('proof_file')) {
+            $file = $request->file('proof_file');
+            $realPath = $file->getRealPath();
+            if ($realPath && file_exists($realPath)) {
+                $proofPath = $file->store('payment_proofs', 'public');
+            } else {
+                $filename = 'payment_proofs/'.$file->hashName();
+                Storage::disk('public')->put($filename, $file->getContent());
+                $proofPath = $filename;
+            }
+        }
+
+        $invoice->recordPayment(
+            amount: (float) $validated['amount'],
+            paymentMethod: $validated['payment_method'],
+            referenceNumber: $validated['reference_number'],
+            notes: $validated['notes'] ?? 'Manual transfer proof submitted by client',
+            paidAt: now(),
+            status: 'pending_verification',
+            proofFile: $proofPath
+        );
+
+        return redirect()->route('invoices.public', $token)
+            ->with('success', '✅ Payment proof submitted successfully! The merchant has been notified to verify your transaction.');
     }
 }

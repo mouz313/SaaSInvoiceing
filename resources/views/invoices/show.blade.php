@@ -80,13 +80,25 @@
                 Send to Client
             </button>
 
-            <!-- Share via WhatsApp -->
+            <!-- Share via WhatsApp (Bilingual Urdu & English) -->
             @php
-                $waInvoiceText = urlencode("Hello {$invoice->client->name}, here is your invoice #{$invoice->invoice_number} for {$invoice->currency} " . number_format($invoice->total, 2) . " due on " . $invoice->due_date->format('M d, Y') . ". You can view and pay online here: " . $invoice->public_url);
+                $merchantName = $invoice->user->company_name ?: $invoice->user->name;
+                $balanceStr = $invoice->currency . ' ' . number_format($invoice->balance_due ?? $invoice->total, 2);
+                $dueDateStr = $invoice->due_date->format('M d, Y');
+                $waRawMessage = "Assalam-o-Alaikum {$invoice->client->name},\n\n"
+                    . "Here is your Invoice #{$invoice->invoice_number} for {$balanceStr} from {$merchantName}.\n"
+                    . "Due Date: {$dueDateStr}\n\n"
+                    . "View & Pay Online:\n{$invoice->public_url}\n\n"
+                    . "آپ کی ادائیگی کا انتظار رہے گا، شکریہ!\n"
+                    . "Thank you for your business!";
+                $waInvoiceText = urlencode($waRawMessage);
                 $waClientPhone = preg_replace('/[^0-9]/', '', $invoice->client->phone ?? '');
+                if (str_starts_with($waClientPhone, '03') && strlen($waClientPhone) === 11) {
+                    $waClientPhone = '92' . substr($waClientPhone, 1);
+                }
             @endphp
             <a href="https://wa.me/{{ $waClientPhone }}?text={{ $waInvoiceText }}" target="_blank" 
-               class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition cursor-pointer" title="Send directly via WhatsApp">
+               class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition cursor-pointer" title="Send reminder directly via WhatsApp">
                 <i data-lucide="message-circle" class="w-4 h-4"></i>
                 <span>WhatsApp</span>
             </a>
@@ -223,6 +235,7 @@
                         <th class="py-2.5 px-3">Date</th>
                         <th class="py-2.5 px-3">Method</th>
                         <th class="py-2.5 px-3">Reference / Tx ID</th>
+                        <th class="py-2.5 px-3">Status</th>
                         <th class="py-2.5 px-3">Notes</th>
                         <th class="py-2.5 px-3 text-right">Amount</th>
                         <th class="py-2.5 px-3 text-right">Action</th>
@@ -230,21 +243,59 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                     @forelse($invoice->payments as $payment)
-                    <tr>
+                    <tr class="{{ $payment->status === 'pending_verification' ? 'bg-amber-50/50 dark:bg-amber-950/20' : '' }}">
                         <td class="py-2.5 px-3 font-medium text-slate-800 dark:text-slate-200">{{ $payment->paid_at?->format('M d, Y') }}</td>
                         <td class="py-2.5 px-3">
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase">
                                 {{ str_replace('_', ' ', $payment->payment_method) }}
                             </span>
                         </td>
-                        <td class="py-2.5 px-3 font-mono text-[11px] text-slate-500">{{ $payment->reference_number ?: '—' }}</td>
+                        <td class="py-2.5 px-3 font-mono text-[11px] text-slate-500">
+                            {{ $payment->reference_number ?: '—' }}
+                            @if($payment->proof_file)
+                                <a href="{{ asset('storage/' . $payment->proof_file) }}" target="_blank" class="ml-1 inline-flex items-center text-blue-600 hover:underline text-[10px]" title="View proof document">
+                                    <i data-lucide="paperclip" class="w-3 h-3"></i> Proof
+                                </a>
+                            @endif
+                        </td>
+                        <td class="py-2.5 px-3">
+                            @if($payment->status === 'pending_verification')
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                    Pending Review
+                                </span>
+                            @elseif($payment->status === 'rejected')
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
+                                    Rejected
+                                </span>
+                            @else
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                    Verified
+                                </span>
+                            @endif
+                        </td>
                         <td class="py-2.5 px-3 text-slate-500 max-w-xs truncate">{{ $payment->notes ?: '—' }}</td>
-                        <td class="py-2.5 px-3 text-right font-extrabold text-emerald-600 dark:text-emerald-400">+ {{ $invoice->currency }} {{ number_format($payment->amount, 2) }}</td>
-                        <td class="py-2.5 px-3 text-right">
+                        <td class="py-2.5 px-3 text-right font-extrabold {{ $payment->status === 'completed' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500' }}">
+                            + {{ $invoice->currency }} {{ number_format($payment->amount, 2) }}
+                        </td>
+                        <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                            @if($payment->status === 'pending_verification')
+                                <form action="{{ route('invoices.payments.approve', [$invoice, $payment]) }}" method="POST" class="inline">
+                                    @csrf
+                                    <button type="submit" class="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] shadow-xs mr-1 cursor-pointer" title="Approve payment & settle invoice balance">
+                                        Approve
+                                    </button>
+                                </form>
+                                <form action="{{ route('invoices.payments.reject', [$invoice, $payment]) }}" method="POST" class="inline">
+                                    @csrf
+                                    <button type="submit" class="px-2 py-1 rounded bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] shadow-xs mr-1 cursor-pointer" title="Reject payment reference">
+                                        Reject
+                                    </button>
+                                </form>
+                            @endif
                             <form action="{{ route('invoices.payments.destroy', [$invoice, $payment]) }}" method="POST" class="inline" onsubmit="return confirm('Delete this payment record and revert balance?')">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="p-1 text-slate-400 hover:text-rose-500 rounded transition">
+                                <button type="submit" class="p-1 text-slate-400 hover:text-rose-500 rounded transition cursor-pointer" title="Delete record">
                                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                                 </button>
                             </form>
@@ -252,7 +303,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="py-3 text-center text-slate-400">No individual payment logs found.</td>
+                        <td colspan="7" class="py-3 text-center text-slate-400">No individual payment logs found.</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -310,7 +361,10 @@
                 <div>
                     <label for="payment_method" class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">Payment Method *</label>
                     <select name="payment_method" id="payment_method" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-medium focus:ring-2 focus:ring-emerald-500">
-                        <option value="bank_transfer">Bank Transfer / Wire</option>
+                        <option value="bank_transfer">Bank Transfer (IBFT)</option>
+                        <option value="raast">Raast Instant Transfer</option>
+                        <option value="jazzcash">JazzCash</option>
+                        <option value="easypaisa">EasyPaisa</option>
                         <option value="cash">Cash</option>
                         <option value="cheque">Cheque</option>
                         <option value="credit_card">Credit / Debit Card</option>

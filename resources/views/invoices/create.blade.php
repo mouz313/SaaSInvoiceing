@@ -5,10 +5,12 @@
 @section('content')
 <div class="max-w-5xl mx-auto space-y-6 pb-24 sm:pb-8" 
      x-data="{
-        taxRate: 0,
-        discountRate: 0,
+        taxRate: {{ old('tax_rate', 0) }},
+        taxAuthority: '{{ old('tax_authority', 'FBR') }}',
+        whtRate: {{ old('wht_rate', 0) }},
+        discountRate: {{ old('discount_rate', 0) }},
         selectedClientId: '{{ old('client_id', request('client_id', '')) }}',
-        currency: '{{ old('currency', Auth::user()->default_currency ?? 'USD') }}',
+        currency: '{{ old('currency', Auth::user()->default_currency ?? 'PKR') }}',
         selectedStyle: '{{ old('style', $defaultStyle ?? 'minimalist') }}',
         selectedLogoId: {{ old('logo_id', 'null') }},
         logos: {{ json_encode($logos->map(fn($l) => ['id' => $l->id, 'filename' => $l->filename, 'url' => $l->url])) }},
@@ -247,6 +249,9 @@
         get taxAmount() {
             return this.taxableAmount * ((parseFloat(this.taxRate) || 0) / 100);
         },
+        get whtAmount() {
+            return this.taxableAmount * ((parseFloat(this.whtRate) || 0) / 100);
+        },
         get additionalChargesTotal() {
             return this.additionalCharges.reduce((acc, charge) => {
                 const val = parseFloat(charge.value) || 0;
@@ -257,7 +262,7 @@
             }, 0);
         },
         get grandTotal() {
-            return this.taxableAmount + this.taxAmount + this.additionalChargesTotal;
+            return Math.max(0, (this.taxableAmount + this.taxAmount + this.additionalChargesTotal) - this.whtAmount);
         }
      }">
 
@@ -698,9 +703,34 @@
                         </div>
                     </div>
 
-                    <!-- Tax / VAT with Modern UI Stepper -->
+                    <!-- Tax Authority & Presets -->
                     <div class="flex items-center justify-between text-slate-600 dark:text-slate-400">
-                        <span class="font-medium">Tax / VAT</span>
+                        <span class="font-medium">Tax Authority</span>
+                        <select name="tax_authority" x-model="taxAuthority"
+                                @change="
+                                    if (taxAuthority === 'FBR') taxRate = 18;
+                                    else if (taxAuthority === 'PRA') taxRate = 16;
+                                    else if (taxAuthority === 'SRB') taxRate = 13;
+                                    else if (taxAuthority === 'KPRA') taxRate = 15;
+                                    else if (taxAuthority === 'BRA') taxRate = 15;
+                                    else if (taxAuthority === 'ICT') taxRate = 15;
+                                    else if (taxAuthority === 'EXEMPT') taxRate = 0;
+                                "
+                                class="px-2.5 py-1 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white">
+                            <option value="FBR">FBR GST (18%)</option>
+                            <option value="PRA">Punjab PRA (16%)</option>
+                            <option value="SRB">Sindh SRB (13%)</option>
+                            <option value="KPRA">KP KPRA (15%)</option>
+                            <option value="BRA">Balochistan BRA (15%)</option>
+                            <option value="ICT">Islamabad ICT (15%)</option>
+                            <option value="CUSTOM">Custom Tax</option>
+                            <option value="EXEMPT">Exempt (0%)</option>
+                        </select>
+                    </div>
+
+                    <!-- Tax / Sales Tax with Modern UI Stepper -->
+                    <div class="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                        <span class="font-medium">Sales Tax / GST</span>
                         <div class="flex items-center gap-3">
                             <div class="flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-0.5 shadow-2xs">
                                 <button type="button" @click="taxRate = Math.max(0, (parseFloat(taxRate) || 0) - 1)" 
@@ -718,6 +748,32 @@
                                 </button>
                             </div>
                             <span class="font-bold text-slate-900 dark:text-white min-w-16 text-right" x-text="'+' + currency + ' ' + taxAmount.toFixed(2)"></span>
+                        </div>
+                    </div>
+
+                    <!-- Withholding Tax (WHT) Deduction at Source -->
+                    <div class="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                        <div>
+                            <span class="font-medium block">Withholding Tax (WHT)</span>
+                            <span class="text-[10px] text-slate-400">Deducted at source</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-0.5 shadow-2xs">
+                                <button type="button" @click="whtRate = Math.max(0, (parseFloat(whtRate) || 0) - 1)" 
+                                        class="w-6 h-6 rounded-lg bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 flex items-center justify-center text-xs font-black shadow-xs transition hover:scale-105 active:scale-95">
+                                    <i data-lucide="minus" class="w-3 h-3"></i>
+                                </button>
+                                <div class="flex items-center px-1.5">
+                                    <input type="number" step="any" min="0" max="100" name="wht_rate" x-model="whtRate" placeholder="0"
+                                           class="w-10 text-center font-bold text-xs text-slate-800 dark:text-white bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none">
+                                    <span class="text-xs font-bold text-slate-400">%</span>
+                                </div>
+                                <button type="button" @click="whtRate = Math.min(100, (parseFloat(whtRate) || 0) + 1)" 
+                                        class="w-6 h-6 rounded-lg bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 flex items-center justify-center text-xs font-black shadow-xs transition hover:scale-105 active:scale-95">
+                                    <i data-lucide="plus" class="w-3 h-3"></i>
+                                </button>
+                            </div>
+                            <span class="font-bold text-amber-600 min-w-16 text-right" x-text="'-' + currency + ' ' + whtAmount.toFixed(2)"></span>
                         </div>
                     </div>
 

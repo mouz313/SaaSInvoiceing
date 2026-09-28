@@ -67,6 +67,9 @@ class ProfileController extends Controller
         $validated = $request->validate([
             'company_name' => ['nullable', 'string', 'max:255'],
             'tax_id' => ['nullable', 'string', 'max:100'],
+            'ntn' => ['nullable', 'string', 'max:50'],
+            'strn' => ['nullable', 'string', 'max:50'],
+            'cnic' => ['nullable', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:500'],
             'city' => ['nullable', 'string', 'max:100'],
             'country' => ['nullable', 'string', 'max:100'],
@@ -88,16 +91,40 @@ class ProfileController extends Controller
         $user = Auth::user();
 
         $validated = $request->validate([
-            'default_currency' => ['nullable', 'string', 'in:USD,EUR,GBP,CAD,AUD,PKR,INR,AED,SAR,JPY'],
+            'default_currency' => ['nullable', 'string', 'in:PKR,USD,EUR,GBP,CAD,AUD,INR,AED,SAR,JPY,CHF'],
             'default_payment_instructions' => ['nullable', 'string', 'max:1000'],
             'default_notes' => ['nullable', 'string', 'max:1000'],
+            'bank_name' => ['nullable', 'string', 'max:100'],
+            'bank_account_title' => ['nullable', 'string', 'max:150'],
+            'bank_account_number' => ['nullable', 'string', 'max:50'],
+            'bank_iban' => ['nullable', 'string', 'max:50'],
+            'raast_id' => ['nullable', 'string', 'max:50'],
+            'jazzcash_number' => ['nullable', 'string', 'max:30'],
+            'jazzcash_title' => ['nullable', 'string', 'max:100'],
+            'easypaisa_number' => ['nullable', 'string', 'max:30'],
+            'easypaisa_title' => ['nullable', 'string', 'max:100'],
+            'jazzcash_merchant_id' => ['nullable', 'string', 'max:100'],
+            'jazzcash_password' => ['nullable', 'string', 'max:100'],
+            'jazzcash_hash_key' => ['nullable', 'string', 'max:255'],
+            'easypaisa_store_id' => ['nullable', 'string', 'max:100'],
+            'easypaisa_hash_key' => ['nullable', 'string', 'max:255'],
         ]);
+
+        if (empty($validated['jazzcash_password'])) {
+            unset($validated['jazzcash_password']);
+        }
+        if (empty($validated['jazzcash_hash_key'])) {
+            unset($validated['jazzcash_hash_key']);
+        }
+        if (empty($validated['easypaisa_hash_key'])) {
+            unset($validated['easypaisa_hash_key']);
+        }
 
         $user->update($validated);
 
-        return redirect()->route('profile.edit')
-            ->with('success', 'Default invoicing preferences updated successfully.')
-            ->with('active_tab', 'invoicing');
+        return redirect()->route('profile.edit', ['tab' => $request->input('redirect_tab', 'payments')])
+            ->with('success', 'Payment methods & invoicing settings updated successfully.')
+            ->with('active_tab', $request->input('redirect_tab', 'payments'));
     }
 
     /**

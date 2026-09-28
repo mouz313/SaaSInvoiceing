@@ -32,6 +32,9 @@ class Invoice extends Model
         'subtotal',
         'tax_rate',
         'tax_amount',
+        'tax_authority',
+        'wht_rate',
+        'wht_amount',
         'discount_rate',
         'discount_amount',
         'additional_charges',
@@ -72,6 +75,8 @@ class Invoice extends Model
             'subtotal' => 'decimal:2',
             'tax_rate' => 'decimal:2',
             'tax_amount' => 'decimal:2',
+            'wht_rate' => 'decimal:2',
+            'wht_amount' => 'decimal:2',
             'discount_rate' => 'decimal:2',
             'discount_amount' => 'decimal:2',
             'additional_charges' => 'array',
@@ -145,18 +150,31 @@ class Invoice extends Model
         string $paymentMethod = 'other',
         ?string $referenceNumber = null,
         ?string $notes = null,
-        mixed $paidAt = null
+        mixed $paidAt = null,
+        string $status = 'completed',
+        ?string $proofFile = null
     ): InvoicePayment {
         $payment = $this->payments()->create([
             'user_id' => $this->user_id,
             'amount' => $amount,
             'payment_method' => $paymentMethod,
+            'status' => $status,
             'reference_number' => $referenceNumber,
+            'proof_file' => $proofFile,
             'notes' => $notes,
             'paid_at' => $paidAt ?? now(),
         ]);
 
-        $newAmountPaid = round((float) $this->payments()->sum('amount'), 2);
+        if ($status === 'completed') {
+            $this->recalculatePaymentTotals($paymentMethod);
+        }
+
+        return $payment;
+    }
+
+    public function recalculatePaymentTotals(string $lastPaymentMethod = 'other'): void
+    {
+        $newAmountPaid = round((float) $this->payments()->where('status', 'completed')->sum('amount'), 2);
         $newBalanceDue = max(0, round((float) $this->total - $newAmountPaid, 2));
 
         $newStatus = $this->status;
@@ -182,13 +200,11 @@ class Invoice extends Model
         if ($justBecamePaid && $this->client?->email) {
             try {
                 Mail::to($this->client->email)
-                    ->send(new PaymentReceiptMail($this, ucfirst(str_replace('_', ' ', $paymentMethod))));
+                    ->send(new PaymentReceiptMail($this, ucfirst(str_replace('_', ' ', $lastPaymentMethod))));
             } catch (\Throwable $e) {
                 Log::warning('Payment receipt email could not be sent: '.$e->getMessage());
             }
         }
-
-        return $payment;
     }
 
     public function markAsPaid(?string $paymentIntentId = null, string $paymentMethod = 'Online / Checkout'): void

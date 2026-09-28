@@ -98,6 +98,8 @@ class InvoiceController extends Controller
             'logo_id' => ['nullable', 'exists:user_logos,id'],
             'currency' => ['required', 'string', 'max:10'],
             'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'tax_authority' => ['nullable', 'string', 'max:50'],
+            'wht_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'discount_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'additional_charges' => ['nullable', 'array'],
             'additional_charges.*.name' => ['nullable', 'string', 'max:100'],
@@ -121,6 +123,8 @@ class InvoiceController extends Controller
 
         $invoice = DB::transaction(function () use ($user, $validated) {
             $taxRate = (float) ($validated['tax_rate'] ?? 0);
+            $taxAuthority = $validated['tax_authority'] ?? null;
+            $whtRate = (float) ($validated['wht_rate'] ?? 0);
             $discountRate = (float) ($validated['discount_rate'] ?? 0);
 
             $subtotal = 0;
@@ -143,6 +147,7 @@ class InvoiceController extends Controller
             $discountAmount = round($subtotal * ($discountRate / 100), 2);
             $taxable = $subtotal - $discountAmount;
             $taxAmount = round($taxable * ($taxRate / 100), 2);
+            $whtAmount = round($taxable * ($whtRate / 100), 2);
 
             $additionalCharges = [];
             $additionalChargesTotal = 0;
@@ -166,7 +171,7 @@ class InvoiceController extends Controller
                 }
             }
 
-            $total = $taxable + $taxAmount + $additionalChargesTotal;
+            $total = max(0, round(($taxable + $taxAmount + $additionalChargesTotal) - $whtAmount, 2));
 
             $invoice = $user->invoices()->create([
                 'client_id' => $validated['client_id'],
@@ -180,6 +185,9 @@ class InvoiceController extends Controller
                 'subtotal' => $subtotal,
                 'tax_rate' => $taxRate,
                 'tax_amount' => $taxAmount,
+                'tax_authority' => $taxAuthority,
+                'wht_rate' => $whtRate,
+                'wht_amount' => $whtAmount,
                 'discount_rate' => $discountRate,
                 'discount_amount' => $discountAmount,
                 'additional_charges' => ! empty($additionalCharges) ? $additionalCharges : null,
@@ -284,6 +292,8 @@ class InvoiceController extends Controller
             'logo_id' => ['nullable', 'exists:user_logos,id'],
             'currency' => ['required', 'string', 'max:10'],
             'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'tax_authority' => ['nullable', 'string', 'max:50'],
+            'wht_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'discount_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'additional_charges' => ['nullable', 'array'],
             'additional_charges.*.name' => ['nullable', 'string', 'max:100'],
@@ -307,6 +317,8 @@ class InvoiceController extends Controller
 
         DB::transaction(function () use ($invoice, $validated) {
             $taxRate = (float) ($validated['tax_rate'] ?? 0);
+            $taxAuthority = $validated['tax_authority'] ?? null;
+            $whtRate = (float) ($validated['wht_rate'] ?? 0);
             $discountRate = (float) ($validated['discount_rate'] ?? 0);
 
             $subtotal = 0;
@@ -329,6 +341,7 @@ class InvoiceController extends Controller
             $discountAmount = round($subtotal * ($discountRate / 100), 2);
             $taxable = $subtotal - $discountAmount;
             $taxAmount = round($taxable * ($taxRate / 100), 2);
+            $whtAmount = round($taxable * ($whtRate / 100), 2);
 
             $additionalCharges = [];
             $additionalChargesTotal = 0;
@@ -352,7 +365,7 @@ class InvoiceController extends Controller
                 }
             }
 
-            $total = $taxable + $taxAmount + $additionalChargesTotal;
+            $total = max(0, round(($taxable + $taxAmount + $additionalChargesTotal) - $whtAmount, 2));
 
             $invoice->update([
                 'client_id' => $validated['client_id'],
@@ -366,6 +379,9 @@ class InvoiceController extends Controller
                 'subtotal' => $subtotal,
                 'tax_rate' => $taxRate,
                 'tax_amount' => $taxAmount,
+                'tax_authority' => $taxAuthority,
+                'wht_rate' => $whtRate,
+                'wht_amount' => $whtAmount,
                 'discount_rate' => $discountRate,
                 'discount_amount' => $discountAmount,
                 'additional_charges' => ! empty($additionalCharges) ? $additionalCharges : null,

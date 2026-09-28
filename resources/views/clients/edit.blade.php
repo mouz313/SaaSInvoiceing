@@ -46,6 +46,31 @@
                 </div>
             </div>
 
+            <!-- FBR Tax & Regional Identity (NTN, STRN, CNIC) -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+                        FBR NTN Number
+                    </label>
+                    <input type="text" name="ntn" value="{{ old('ntn', $client->ntn) }}" placeholder="e.g. 1234567-8"
+                           class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+                        STRN Number
+                    </label>
+                    <input type="text" name="strn" value="{{ old('strn', $client->strn) }}" placeholder="e.g. 12-00-1234-567-89"
+                           class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+                        CNIC / National ID
+                    </label>
+                    <input type="text" name="cnic" value="{{ old('cnic', $client->cnic) }}" placeholder="e.g. 35201-1234567-1"
+                           class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">

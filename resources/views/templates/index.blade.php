@@ -18,6 +18,11 @@
          templatePrice: {{ $initialTemplate ? $initialTemplate->price : 0 }},
          templateIsFree: {{ $initialTemplate && $initialTemplate->is_free ? 'true' : 'false' }},
          templateIsOwned: {{ $initialIsOwned ? 'true' : 'false' }},
+         couponCode: '',
+         couponApplied: false,
+         couponDiscount: 0,
+         couponError: '',
+         couponLoading: false,
          openPreview(slug, name, category, price, isFree, isOwned) {
              this.templateSlug = slug;
              this.templateName = name;
@@ -25,7 +30,48 @@
              this.templatePrice = price;
              this.templateIsFree = Boolean(isFree);
              this.templateIsOwned = Boolean(isOwned);
+             this.couponCode = '';
+             this.couponApplied = false;
+             this.couponDiscount = 0;
+             this.couponError = '';
              this.previewModalOpen = true;
+         },
+         get discountedPrice() {
+             return Math.max(0, this.templatePrice - this.couponDiscount);
+         },
+         async applyCoupon() {
+             if (!this.couponCode.trim()) return;
+             this.couponLoading = true;
+             this.couponError = '';
+             try {
+                 const res = await fetch('{{ route('coupons.validate') }}', {
+                     method: 'POST',
+                     headers: {
+                         'Content-Type': 'application/json',
+                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                         'Accept': 'application/json'
+                     },
+                     body: JSON.stringify({
+                         code: this.couponCode.trim(),
+                         applies_to: 'templates',
+                         amount: this.templatePrice
+                     })
+                 });
+                 const data = await res.json();
+                 if (data.valid) {
+                     this.couponApplied = true;
+                     this.couponDiscount = data.discount_amount;
+                     this.couponError = '';
+                 } else {
+                     this.couponApplied = false;
+                     this.couponDiscount = 0;
+                     this.couponError = data.message || 'Invalid coupon code';
+                 }
+             } catch (e) {
+                 this.couponError = 'Failed to validate coupon';
+             } finally {
+                 this.couponLoading = false;
+             }
          }
      }"
      @keydown.escape.window="previewModalOpen = false">
@@ -314,15 +360,40 @@
                         </form>
                     </template>
 
-                    <!-- If unowned & premium: Buy -->
+                    <!-- If unowned & premium: Buy with Coupon Option -->
                     <template x-if="!templateIsOwned && !templateIsFree">
-                        <form :action="'/templates/' + templateSlug + '/checkout'" method="POST">
-                            @csrf
-                            <button type="submit" class="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition flex items-center gap-1.5 cursor-pointer">
-                                <i data-lucide="shopping-bag" class="w-4 h-4"></i>
-                                <span>Buy $<span x-text="Number(templatePrice).toFixed(0)"></span></span>
-                            </button>
-                        </form>
+                        <div class="flex items-center gap-2">
+                            <!-- Coupon Input Group -->
+                            <div class="hidden sm:flex items-center relative">
+                                <input type="text" 
+                                       x-model="couponCode" 
+                                       @keydown.enter.prevent="applyCoupon()"
+                                       placeholder="Promo Code" 
+                                       :disabled="couponApplied"
+                                       class="uppercase text-[11px] font-bold px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 w-28 focus:w-32 transition-all focus:ring-1 focus:ring-blue-500">
+                                <button type="button" 
+                                        @click="applyCoupon()" 
+                                        :disabled="couponLoading || couponApplied || !couponCode"
+                                        class="ml-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition disabled:opacity-50 cursor-pointer">
+                                    <span x-show="!couponLoading && !couponApplied">Apply</span>
+                                    <span x-show="couponLoading" x-cloak>...</span>
+                                    <span x-show="couponApplied" x-cloak class="text-emerald-600 font-bold">✓</span>
+                                </button>
+                            </div>
+
+                            <form :action="'/templates/' + templateSlug + '/checkout'" method="POST" class="inline">
+                                @csrf
+                                <input type="hidden" name="coupon_code" :value="couponApplied ? couponCode : ''">
+                                <button type="submit" class="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition flex items-center gap-1.5 cursor-pointer">
+                                    <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+                                    <span x-show="!couponApplied">Buy $<span x-text="Number(templatePrice).toFixed(0)"></span></span>
+                                    <span x-show="couponApplied" x-cloak class="flex items-center gap-1">
+                                        <span class="line-through opacity-70 text-[10px]">$<span x-text="Number(templatePrice).toFixed(0)"></span></span>
+                                        <span>Buy $<span x-text="discountedPrice.toFixed(0)"></span></span>
+                                    </span>
+                                </button>
+                            </form>
+                        </div>
                     </template>
 
                     <!-- Close Modal -->
@@ -332,6 +403,20 @@
                     </button>
                 </div>
             </div>
+
+            <!-- Coupon Error / Success Notice Strip -->
+            <template x-if="couponError">
+                <div class="px-5 py-2 bg-rose-50 dark:bg-rose-950/60 border-b border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center justify-between">
+                    <span x-text="couponError"></span>
+                    <button type="button" @click="couponError = ''" class="text-rose-400 hover:text-rose-600 text-sm cursor-pointer">&times;</button>
+                </div>
+            </template>
+            <template x-if="couponApplied">
+                <div class="px-5 py-2 bg-emerald-50 dark:bg-emerald-950/60 border-b border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center justify-between">
+                    <span>🎉 Coupon applied! Discount: $<span x-text="couponDiscount.toFixed(2)"></span></span>
+                    <button type="button" @click="couponApplied = false; couponCode = ''; couponDiscount = 0;" class="underline text-[11px] hover:text-emerald-900 cursor-pointer">Remove</button>
+                </div>
+            </template>
 
             <!-- Modal Body (Zero Iframe, Instant Render, Protected) -->
             <div class="flex-1 bg-slate-100 dark:bg-slate-950 p-3 sm:p-6 overflow-y-auto max-h-[calc(92vh-75px)] flex justify-center">

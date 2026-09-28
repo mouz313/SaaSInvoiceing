@@ -28,6 +28,13 @@
                         @endif
                     </div>
                     <div style="font-size: 11px; color: #64748b;">{{ $invoice->user->email }}</div>
+                    @if($invoice->user->ntn || $invoice->user->strn)
+                        <div style="font-size: 10px; color: #475569; margin-top: 3px;">
+                            @if($invoice->user->ntn)<span>NTN: <strong>{{ $invoice->user->ntn }}</strong></span>@endif
+                            @if($invoice->user->ntn && $invoice->user->strn) &bull; @endif
+                            @if($invoice->user->strn)<span>STRN: <strong>{{ $invoice->user->strn }}</strong></span>@endif
+                        </div>
+                    @endif
                 </td>
                 <td style="vertical-align: top; width: 40%; text-align: right;">
                     <div style="font-size: 26px; font-weight: 900; color: #0f172a; letter-spacing: -1px;">INVOICE</div>
@@ -48,6 +55,13 @@
                 <div style="font-size: 14px; font-weight: 700; color: #0f172a; margin-top: 2px;">{{ $invoice->client->name }}</div>
                 @if($invoice->client->company_name)<div style="font-size: 11px; color: #475569;">{{ $invoice->client->company_name }}</div>@endif
                 @if($invoice->client->address)<div style="font-size: 10px; color: #64748b;">{{ $invoice->client->address }}</div>@endif
+                @if($invoice->client->ntn || $invoice->client->strn || $invoice->client->cnic)
+                    <div style="font-size: 9px; color: #64748b; margin-top: 3px;">
+                        @if($invoice->client->ntn)<span>NTN: <strong>{{ $invoice->client->ntn }}</strong></span>@endif
+                        @if($invoice->client->strn)<span style="margin-left: 6px;">STRN: <strong>{{ $invoice->client->strn }}</strong></span>@endif
+                        @if($invoice->client->cnic)<span style="margin-left: 6px;">CNIC: <strong>{{ $invoice->client->cnic }}</strong></span>@endif
+                    </div>
+                @endif
             </td>
             <td style="width: 45%; vertical-align: top; text-align: right;">
                 <div style="font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8;">Due Terms</div>
@@ -87,7 +101,10 @@
             <td style="width: 45%; vertical-align: top; text-align: right;">
                 <div style="font-size: 11px; color: #64748b;">Subtotal: {{ $invoice->currency }} {{ number_format($invoice->subtotal, 2) }}</div>
                 @if($invoice->tax_amount > 0)
-                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Tax: +{{ $invoice->currency }} {{ number_format($invoice->tax_amount, 2) }}</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">{{ $invoice->tax_authority ?: 'Tax' }} ({{ $invoice->tax_rate }}%): +{{ $invoice->currency }} {{ number_format($invoice->tax_amount, 2) }}</div>
+                @endif
+                @if($invoice->wht_amount > 0)
+                <div style="font-size: 11px; color: #dc2626; margin-top: 2px;">WHT ({{ $invoice->wht_rate }}%): -{{ $invoice->currency }} {{ number_format($invoice->wht_amount, 2) }}</div>
                 @endif
                 <div style="font-size: 16px; font-weight: 900; color: #0f172a; margin-top: 4px; border-top: 2px solid #0f172a; padding-top: 4px;">
                     Total: {{ $invoice->currency }} {{ number_format($invoice->total, 2) }}
@@ -123,6 +140,13 @@
                 </div>
             </div>
             <p class="text-xs text-slate-500">{{ $invoice->user->email }}</p>
+            @if($invoice->user->ntn || $invoice->user->strn)
+                <div class="flex items-center gap-2 mt-1 text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                    @if($invoice->user->ntn)<span>NTN: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->user->ntn }}</strong></span>@endif
+                    @if($invoice->user->ntn && $invoice->user->strn)<span class="text-slate-400">&bull;</span>@endif
+                    @if($invoice->user->strn)<span>STRN: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->user->strn }}</strong></span>@endif
+                </div>
+            @endif
         </div>
 
         <div class="sm:text-right space-y-1">
@@ -145,6 +169,13 @@
             <p class="font-bold text-base text-slate-900 dark:text-white">{{ $invoice->client->name }}</p>
             @if($invoice->client->company_name)<p class="text-xs text-slate-600 dark:text-slate-300 font-medium">{{ $invoice->client->company_name }}</p>@endif
             @if($invoice->client->address)<p class="text-xs text-slate-500">{{ $invoice->client->address }}</p>@endif
+            @if($invoice->client->ntn || $invoice->client->strn || $invoice->client->cnic)
+                <div class="flex items-center gap-2 mt-1.5 text-[11px] text-slate-500 font-medium flex-wrap">
+                    @if($invoice->client->ntn)<span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-700/60">NTN: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->client->ntn }}</strong></span>@endif
+                    @if($invoice->client->strn)<span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-700/60">STRN: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->client->strn }}</strong></span>@endif
+                    @if($invoice->client->cnic)<span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-700/60">CNIC: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->client->cnic }}</strong></span>@endif
+                </div>
+            @endif
         </div>
         <div class="sm:text-right">
             <div class="inline-flex flex-col items-center select-none">
@@ -212,8 +243,14 @@
             </div>
             @if($invoice->tax_amount > 0)
             <div class="flex justify-between text-slate-500">
-                <span>Tax:</span>
+                <span>{{ $invoice->tax_authority ?: 'Tax' }} ({{ $invoice->tax_rate }}%):</span>
                 <span class="font-bold">+{{ $invoice->currency }} {{ number_format($invoice->tax_amount, 2) }}</span>
+            </div>
+            @endif
+            @if($invoice->wht_amount > 0)
+            <div class="flex justify-between text-rose-600 dark:text-rose-400 font-semibold">
+                <span>WHT ({{ $invoice->wht_rate }}%):</span>
+                <span>-{{ $invoice->currency }} {{ number_format($invoice->wht_amount, 2) }}</span>
             </div>
             @endif
             <div class="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-baseline text-sm">

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Coupon;
 use App\Models\InvoiceTemplate;
 use App\Models\UserTemplatePurchase;
 use Illuminate\Http\RedirectResponse;
@@ -63,9 +64,36 @@ class TemplateController extends Controller
     }
 
     /**
+     * Full-page live interactive preview of an invoice template style.
+     */
+    public function preview(Request $request, string $slug): View
+    {
+        $user = Auth::user();
+        $template = InvoiceTemplate::where('slug', $slug)->first();
+
+        if (! $template) {
+            $template = new InvoiceTemplate([
+                'name' => ucwords(str_replace(['_', '-'], ' ', $slug)),
+                'slug' => $slug,
+                'category' => 'Standard',
+                'description' => 'Baseline professional invoice design style.',
+                'price' => 0.00,
+                'is_free' => true,
+                'is_active' => true,
+            ]);
+        }
+
+        $invoice = InvoiceTemplate::sampleInvoice($user);
+        $invoice->style = $slug;
+        $isOwned = $template->exists ? $template->isOwnedBy($user) : true;
+
+        return view('templates.preview', compact('template', 'invoice', 'isOwned'));
+    }
+
+    /**
      * Start Stripe checkout session for purchasing a template.
      */
-    public function checkout(InvoiceTemplate $template): RedirectResponse
+    public function checkout(Request $request, InvoiceTemplate $template): RedirectResponse
     {
         $user = Auth::user();
 
@@ -74,20 +102,42 @@ class TemplateController extends Controller
                 ->with('info', "You already own the {$template->name} template!");
         }
 
-        // Free template instant unlock
-        if ($template->is_free || (float) $template->price <= 0) {
+        $couponCode = $request->input('coupon_code');
+        $coupon = null;
+        $finalPrice = (float) $template->price;
+        $discountAmount = 0.00;
+
+        if ($couponCode) {
+            $coupon = Coupon::active()
+                ->where('code', strtoupper(trim($couponCode)))
+                ->first();
+
+            if ($coupon && $coupon->isValid((float) $template->price, 'templates')) {
+                $discountAmount = $coupon->calculateDiscount((float) $template->price);
+                $finalPrice = max(0, round((float) $template->price - $discountAmount, 2));
+            }
+        }
+
+        // Free template or 100% coupon discount instant unlock
+        if ($template->is_free || $finalPrice <= 0) {
             UserTemplatePurchase::firstOrCreate([
                 'user_id' => $user->id,
                 'template_id' => $template->id,
             ], [
                 'price_paid' => 0.00,
                 'currency' => $template->currency ?: 'USD',
-                'payment_method' => 'free_unlock',
-                'transaction_id' => 'free_'.time(),
+                'payment_method' => $coupon ? 'coupon_unlock' : 'free_unlock',
+                'transaction_id' => ($coupon ? 'cpn_' : 'free_').time(),
             ]);
 
+            if ($coupon) {
+                $coupon->recordUsage($user->id, $template, $discountAmount);
+            }
+
             return redirect()->route('templates.index')
-                ->with('success', "Template '{$template->name}' has been unlocked for free!");
+                ->with('success', $coupon
+                    ? "🎉 Coupon '{$coupon->code}' applied! Template '{$template->name}' unlocked for free!"
+                    : "Template '{$template->name}' has been unlocked for free!");
         }
 
         // Stripe Checkout
@@ -99,6 +149,10 @@ class TemplateController extends Controller
 
         Stripe::setApiKey($stripeSecret);
 
+        $successUrl = route('templates.checkout.success', ['template' => $template->slug])
+            .'?session_id={CHECKOUT_SESSION_ID}'
+            .($coupon ? '&coupon_id='.$coupon->id.'&discount='.$discountAmount.'&amount='.$finalPrice : '');
+
         $session = StripeSession::create([
             'payment_method_types' => ['card'],
             'customer_email' => $user->email,
@@ -107,9 +161,11 @@ class TemplateController extends Controller
                     'currency' => strtolower($template->currency ?: 'usd'),
                     'product_data' => [
                         'name' => "Invoice Template: {$template->name}",
-                        'description' => $template->description ?: "Lifetime access to the {$template->name} invoice design style.",
+                        'description' => $coupon
+                            ? "Lifetime access to {$template->name} (Coupon: {$coupon->code} applied)"
+                            : ($template->description ?: "Lifetime access to the {$template->name} invoice design style."),
                     ],
-                    'unit_amount' => (int) round($template->price * 100),
+                    'unit_amount' => (int) round($finalPrice * 100),
                 ],
                 'quantity' => 1,
             ]],
@@ -119,8 +175,10 @@ class TemplateController extends Controller
                 'user_id' => (string) $user->id,
                 'template_id' => (string) $template->id,
                 'template_slug' => $template->slug,
+                'coupon_id' => $coupon ? (string) $coupon->id : '',
+                'discount' => (string) $discountAmount,
             ],
-            'success_url' => route('templates.checkout.success', ['template' => $template->slug]).'?session_id={CHECKOUT_SESSION_ID}',
+            'success_url' => $successUrl,
             'cancel_url' => route('templates.index'),
         ]);
 
@@ -134,16 +192,26 @@ class TemplateController extends Controller
     {
         $user = Auth::user();
         $sessionId = $request->query('session_id');
+        $couponId = $request->query('coupon_id');
+        $discount = (float) $request->query('discount', 0);
+        $amount = (float) $request->query('amount', $template->price);
 
         UserTemplatePurchase::firstOrCreate([
             'user_id' => $user->id,
             'template_id' => $template->id,
         ], [
-            'price_paid' => $template->price,
+            'price_paid' => $amount,
             'currency' => $template->currency ?: 'USD',
             'payment_method' => 'stripe',
             'transaction_id' => $sessionId ?: 'tx_'.time(),
         ]);
+
+        if ($couponId) {
+            $coupon = Coupon::find($couponId);
+            if ($coupon) {
+                $coupon->recordUsage($user->id, $template, $discount);
+            }
+        }
 
         return redirect()->route('templates.index')
             ->with('success', "🎉 Congratulations! You have successfully unlocked the '{$template->name}' template. It is now ready to use in your invoices!");

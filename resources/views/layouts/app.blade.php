@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ app()->getLocale() === 'ur' ? 'rtl' : 'ltr' }}" class="h-full">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -188,6 +188,17 @@
                                 {{ Auth::user()->expenses()->unbilled()->count() }}
                             </span>
                         </a>
+
+                        <a href="{{ route('bank-sync.index') }}" 
+                           class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('bank-sync.*') ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="landmark" class="w-4 h-4"></i>
+                                Bank Statement Sync
+                            </div>
+                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
+                                PK IBFT
+                            </span>
+                        </a>
                     </div>
                 </div>
 
@@ -199,6 +210,18 @@
                            class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('profile.*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                             <i data-lucide="settings" class="w-4 h-4"></i>
                             Settings & Profile
+                        </a>
+
+                        <a href="{{ route('teams.index') }}" 
+                           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('teams.*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                            <i data-lucide="users" class="w-4 h-4"></i>
+                            Team & Roles
+                        </a>
+
+                        <a href="{{ route('settings.developer') }}" 
+                           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('settings.developer') ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                            <i data-lucide="terminal" class="w-4 h-4"></i>
+                            Developer API & Webhooks
                         </a>
                     </div>
                 </div>
@@ -262,7 +285,15 @@
                 <h1 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white">@yield('title', 'Dashboard')</h1>
             </div>
 
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2.5 sm:gap-3">
+                <!-- Urdu / English Language Switcher -->
+                <a href="{{ route('locale.switch', app()->getLocale() === 'ur' ? 'en' : 'ur') }}" 
+                   class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition shadow-xs"
+                   title="{{ app()->getLocale() === 'ur' ? 'Switch to English' : 'اردو میں دیکھیں' }}">
+                    <i data-lucide="languages" class="w-3.5 h-3.5 text-blue-600 dark:text-blue-400"></i>
+                    <span>{{ app()->getLocale() === 'ur' ? 'English' : 'اردو' }}</span>
+                </a>
+
                 <!-- Theme Toggle Button in Header -->
                 <button type="button" class="theme-toggle-btn p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
                     <span class="dark:hidden"><i data-lucide="moon" class="w-4 h-4"></i></span>

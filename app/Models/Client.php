@@ -25,6 +25,9 @@ class Client extends Model
         'postal_code',
         'country',
         'tax_id',
+        'ntn',
+        'strn',
+        'cnic',
         'currency',
         'portal_access_token',
         'portal_token_expires_at',
@@ -53,7 +56,7 @@ class Client extends Model
                 $client->portal_token_expires_at = now()->addDays(30);
             }
             if (empty($client->currency)) {
-                $client->currency = 'USD';
+                $client->currency = 'PKR';
             }
             if (! empty($client->email) && empty($client->password)) {
                 $tempPassword = 'Pass'.rand(1000, 9999).Str::random(2);
@@ -130,6 +133,6 @@ class Client extends Model
 
     public function getCurrencySymbolAttribute(): string
     {
-        return Currency::symbol($this->currency ?? 'USD');
+        return Currency::symbol($this->currency ?? 'PKR');
     }
 }

@@ -19,7 +19,7 @@ class InvoicePaymentController extends Controller
 
         $validated = $request->validate([
             'amount' => ['required', 'numeric', 'min:0.01', 'max:'.($balance > 0 ? $balance : $invoice->total)],
-            'payment_method' => ['required', 'string', 'in:stripe,bank_transfer,cash,cheque,credit_card,other'],
+            'payment_method' => ['required', 'string', 'in:stripe,bank_transfer,raast,jazzcash,easypaisa,cash,cheque,credit_card,other'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'paid_at' => ['required', 'date'],
             'notes' => ['nullable', 'string', 'max:1000'],
@@ -36,6 +36,36 @@ class InvoicePaymentController extends Controller
         return back()->with('success', 'Payment of '.$invoice->currency.' '.number_format($validated['amount'], 2).' recorded successfully.');
     }
 
+    public function approve(Invoice $invoice, InvoicePayment $payment): RedirectResponse
+    {
+        if ($invoice->user_id !== auth()->id() || $payment->invoice_id !== $invoice->id) {
+            abort(403);
+        }
+
+        $payment->update([
+            'status' => 'completed',
+        ]);
+
+        $invoice->recalculatePaymentTotals($payment->payment_method);
+
+        return back()->with('success', 'Payment of '.$invoice->currency.' '.number_format($payment->amount, 2).' verified and approved!');
+    }
+
+    public function reject(Invoice $invoice, InvoicePayment $payment): RedirectResponse
+    {
+        if ($invoice->user_id !== auth()->id() || $payment->invoice_id !== $invoice->id) {
+            abort(403);
+        }
+
+        $payment->update([
+            'status' => 'rejected',
+        ]);
+
+        $invoice->recalculatePaymentTotals();
+
+        return back()->with('info', 'Payment record marked as rejected.');
+    }
+
     public function destroy(Invoice $invoice, InvoicePayment $payment): RedirectResponse
     {
         if ($invoice->user_id !== auth()->id() || $payment->invoice_id !== $invoice->id) {
@@ -44,24 +74,7 @@ class InvoicePaymentController extends Controller
 
         $payment->delete();
 
-        $newPaid = round((float) $invoice->payments()->sum('amount'), 2);
-        $newBal = max(0, round((float) $invoice->total - $newPaid, 2));
-
-        $newStatus = $invoice->status;
-        if ($newBal <= 0) {
-            $newStatus = 'paid';
-        } elseif ($newPaid > 0) {
-            $newStatus = 'partially_paid';
-        } elseif ($invoice->status === 'partially_paid') {
-            $newStatus = 'sent';
-        }
-
-        $invoice->update([
-            'amount_paid' => $newPaid,
-            'balance_due' => $newBal,
-            'status' => $newStatus,
-            'paid_at' => $newBal <= 0 ? $invoice->paid_at : null,
-        ]);
+        $invoice->recalculatePaymentTotals();
 
         return back()->with('success', 'Payment record deleted and invoice balance recalculated.');
     }

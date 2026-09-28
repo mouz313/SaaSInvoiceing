@@ -15,10 +15,22 @@ class InvoicePayment extends Model
         'user_id',
         'amount',
         'payment_method',
+        'status',
         'reference_number',
+        'proof_file',
         'notes',
         'paid_at',
     ];
+
+    public function isCompleted(): bool
+    {
+        return $this->status === 'completed';
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === 'pending_verification';
+    }
 
     protected $casts = [
         'amount' => 'decimal:2',

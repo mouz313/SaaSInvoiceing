@@ -1,13 +1,17 @@
 <?php
 
 use App\Http\Controllers\Admin\CmsController;
+use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\TemplateController as AdminTemplateController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BankSyncController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ClientPortalController;
+use App\Http\Controllers\CouponValidationController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DeveloperController;
 use App\Http\Controllers\EstimateController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\HomeController;
@@ -19,6 +23,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\RecurringInvoiceController;
 use App\Http\Controllers\StripeController;
+use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Controllers\TimeEntryController;
 use App\Http\Controllers\UserLogoController;
@@ -41,7 +46,18 @@ Route::get('/faq', [PageController::class, 'faq'])->name('pages.faq');
 Route::get('/pay/{token}', [PublicInvoiceController::class, 'show'])->name('invoices.public');
 Route::get('/pay/{token}/pdf', [PublicInvoiceController::class, 'pdf'])->name('invoices.public.pdf');
 Route::post('/pay/{token}/checkout', [PublicInvoiceController::class, 'checkout'])->name('invoices.public.checkout')->middleware('throttle:public-pay');
+Route::post('/pay/{token}/proof', [PublicInvoiceController::class, 'submitProof'])->name('invoices.public.proof')->middleware('throttle:public-pay');
 Route::get('/pay/{token}/success', [PublicInvoiceController::class, 'success'])->name('invoices.public.success');
+Route::get('/locale/{locale}', function (string $locale) {
+    if (in_array($locale, ['en', 'ur'], true)) {
+        session(['locale' => $locale]);
+        if (auth()->check()) {
+            auth()->user()->update(['locale' => $locale]);
+        }
+    }
+
+    return back();
+})->name('locale.switch');
 
 // Public Client Estimate / Proposal Portal
 Route::get('/estimate/{token}', [EstimateController::class, 'publicView'])->name('estimates.public');
@@ -109,6 +125,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
     Route::post('/invoices/{invoice}/send-email', [InvoiceController::class, 'sendEmail'])->name('invoices.send-email');
     Route::post('/invoices/{invoice}/payments', [InvoicePaymentController::class, 'store'])->name('invoices.payments.store');
+    Route::post('/invoices/{invoice}/payments/{payment}/approve', [InvoicePaymentController::class, 'approve'])->name('invoices.payments.approve');
+    Route::post('/invoices/{invoice}/payments/{payment}/reject', [InvoicePaymentController::class, 'reject'])->name('invoices.payments.reject');
     Route::delete('/invoices/{invoice}/payments/{payment}', [InvoicePaymentController::class, 'destroy'])->name('invoices.payments.destroy');
 
     // Recurring Invoices (Auto-Billing)
@@ -137,8 +155,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/logos', [UserLogoController::class, 'store'])->name('logos.store');
     Route::delete('/logos/{logo}', [UserLogoController::class, 'destroy'])->name('logos.destroy');
 
-    // Invoice Templates Marketplace
+    // Invoice Templates Marketplace & Live Previews
     Route::get('/templates', [TemplateController::class, 'index'])->name('templates.index');
+    Route::get('/templates/{slug}/preview', [TemplateController::class, 'preview'])->name('templates.preview');
     Route::post('/templates/{template:slug}/checkout', [TemplateController::class, 'checkout'])->name('templates.checkout');
     Route::get('/templates/{template:slug}/checkout/success', [TemplateController::class, 'checkoutSuccess'])->name('templates.checkout.success');
 
@@ -148,13 +167,29 @@ Route::middleware('auth')->group(function () {
     Route::put('/profile/personal', [ProfileController::class, 'updatePersonal'])->name('profile.personal');
     Route::put('/profile/business', [ProfileController::class, 'updateBusiness'])->name('profile.business');
     Route::put('/profile/invoicing', [ProfileController::class, 'updateInvoicing'])->name('profile.invoicing');
+    Route::put('/profile/payments', [ProfileController::class, 'updateInvoicing'])->name('profile.payments');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
 
     // Stripe Billing & Packages
     Route::post('/checkout/{package}', [StripeController::class, 'checkout'])->name('stripe.checkout');
     Route::get('/checkout/simulate/{package}', [StripeController::class, 'simulate'])->name('stripe.simulate');
     Route::get('/stripe/success', [StripeController::class, 'success'])->name('stripe.success');
-    Route::get('/stripe/cancel', [StripeController::class, 'cancel'])->name('stripe.cancel');
+    // Developer API Keys & Webhooks
+    Route::get('/settings/developer', [DeveloperController::class, 'index'])->name('settings.developer');
+    Route::post('/settings/api-keys', [DeveloperController::class, 'storeKey'])->name('settings.api-keys.store');
+    Route::delete('/settings/api-keys/{apiKey}', [DeveloperController::class, 'destroyKey'])->name('settings.api-keys.destroy');
+    Route::post('/settings/webhooks', [DeveloperController::class, 'storeWebhook'])->name('settings.webhooks.store');
+    Route::post('/settings/webhooks/{webhook}/ping', [DeveloperController::class, 'pingWebhook'])->name('settings.webhooks.ping');
+    Route::delete('/settings/webhooks/{webhook}', [DeveloperController::class, 'destroyWebhook'])->name('settings.webhooks.destroy');
+
+    // Team & Multi-User Roles
+    Route::resource('teams', TeamController::class)->except(['create', 'show', 'edit']);
+
+    // Bank Statement Import & Reconciliation
+    Route::get('/bank-sync', [BankSyncController::class, 'index'])->name('bank-sync.index');
+    Route::post('/bank-sync/upload', [BankSyncController::class, 'upload'])->name('bank-sync.upload');
+    Route::post('/bank-sync/{transaction}/reconcile', [BankSyncController::class, 'reconcile'])->name('bank-sync.reconcile');
+    Route::post('/bank-sync/{transaction}/ignore', [BankSyncController::class, 'ignore'])->name('bank-sync.ignore');
 });
 
 /*
@@ -189,12 +224,19 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::put('/templates/{template}', [AdminTemplateController::class, 'update'])->name('templates.update');
     Route::patch('/templates/{template}/toggle-active', [AdminTemplateController::class, 'toggleActive'])->name('templates.toggle-active');
 
+    // Promotional Coupons & Discounts
+    Route::resource('coupons', CouponController::class)->except(['create', 'show', 'edit']);
+    Route::patch('/coupons/{coupon}/toggle-status', [CouponController::class, 'toggleStatus'])->name('coupons.toggle');
+
     // System Settings (Social, Stripe, Firebase, General, Cron Automation)
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
     Route::post('/settings/cron/run', [SettingsController::class, 'runCronTask'])->name('settings.cron.run');
     Route::post('/settings/cron/regenerate-token', [SettingsController::class, 'regenerateCronToken'])->name('settings.cron.regenerate');
 });
+
+// Coupon AJAX validation for checkouts
+Route::post('/coupons/validate', [CouponValidationController::class, 'validateCoupon'])->name('coupons.validate')->middleware('throttle:30,1');
 
 // External Web-based Cron Trigger (cron-job.org, EasyCron, webhooks)
 Route::match(['get', 'post'], '/cron/run/{token?}', [WebCronController::class, 'run'])->name('cron.web')->middleware('throttle:cron');
