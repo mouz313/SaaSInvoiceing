@@ -188,10 +188,10 @@ class PublicInvoiceController extends Controller
             $file = $request->file('proof_file');
             $realPath = $file->getRealPath();
             if ($realPath && file_exists($realPath)) {
-                $proofPath = $file->store('payment_proofs', 'public');
+                $proofPath = $file->store('payment_proofs', 'local');
             } else {
                 $filename = 'payment_proofs/'.$file->hashName();
-                Storage::disk('public')->put($filename, $file->getContent());
+                Storage::disk('local')->put($filename, $file->getContent());
                 $proofPath = $filename;
             }
         }

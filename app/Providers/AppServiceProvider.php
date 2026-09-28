@@ -74,5 +74,17 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('public-pay', function (Request $request) {
             return Limit::perMinute(10)->by($request->ip());
         });
+
+        RateLimiter::for('api-keys', function (Request $request) {
+            $apiKey = $request->attributes->get('api_key');
+            $key = $apiKey ? 'api-key:'.$apiKey->id : ($request->bearerToken() ?: $request->ip());
+
+            return Limit::perMinute(60)->by($key)->response(function () {
+                return response()->json([
+                    'error' => 'Too Many Requests',
+                    'message' => 'API rate limit exceeded. You are limited to 60 requests per minute.',
+                ], 429);
+            });
+        });
     }
 }

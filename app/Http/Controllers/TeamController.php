@@ -46,8 +46,10 @@ class TeamController extends Controller
 
         // Check if user exists or create account for them
         $user = User::where('email', $validated['email'])->first();
+        $status = 'active';
 
         if (! $user) {
+            $status = 'pending';
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
@@ -70,11 +72,46 @@ class TeamController extends Controller
             'owner_id' => $owner->id,
             'user_id' => $user->id,
             'role' => $validated['role'],
-            'status' => 'active',
+            'status' => $status,
         ]);
 
-        return redirect()->route('teams.index')
-            ->with('success', "👥 {$user->name} has been added to your team as {$validated['role']}!");
+        $msg = $status === 'pending'
+            ? "👥 Invitation sent to {$user->name} as {$validated['role']} (pending setup)."
+            : "👥 {$user->name} has been added to your team as {$validated['role']}!";
+
+        return redirect()->route('teams.index')->with('success', $msg);
+    }
+
+    /**
+     * Switch active organization account context.
+     */
+    public function switchAccount(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'owner_id' => ['required', 'integer'],
+        ]);
+
+        $ownerId = (int) $validated['owner_id'];
+        $user = $request->user();
+
+        if ($ownerId === $user->id) {
+            session()->forget('active_account_owner_id');
+
+            return back()->with('success', 'Switched to personal account.');
+        }
+
+        $membership = TeamMember::where('owner_id', $ownerId)
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->first();
+
+        if (! $membership) {
+            abort(403, 'You do not have access to this organization account.');
+        }
+
+        session(['active_account_owner_id' => $ownerId]);
+
+        return back()->with('success', "Switched workspace to {$membership->owner->name}'s team ({$membership->role}).");
     }
 
     /**

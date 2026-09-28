@@ -16,22 +16,32 @@ class AuthenticateApiKey
      */
     public function handle(Request $request, Closure $next, ?string $requiredAbility = null): Response
     {
-        $token = $request->bearerToken() ?: $request->query('api_key');
-
-        if (! $token) {
-            return response()->json([
-                'error' => 'Unauthorized',
-                'message' => 'Missing API key. Provide via Bearer token in Authorization header or ?api_key query parameter.',
-            ], 401);
-        }
-
-        $apiKey = ApiKey::findToken($token);
+        $apiKey = $request->attributes->get('api_key');
 
         if (! $apiKey) {
-            return response()->json([
-                'error' => 'Unauthorized',
-                'message' => 'Invalid or expired API key.',
-            ], 401);
+            $token = $request->bearerToken();
+
+            if (! $token) {
+                return response()->json([
+                    'error' => 'Unauthorized',
+                    'message' => 'Missing API key. Provide via Bearer token in the Authorization header.',
+                ], 401);
+            }
+
+            $apiKey = ApiKey::findToken($token);
+
+            if (! $apiKey) {
+                return response()->json([
+                    'error' => 'Unauthorized',
+                    'message' => 'Invalid or expired API key.',
+                ], 401);
+            }
+
+            $apiKey->touchLastUsed();
+
+            // Bind user to request
+            $request->setUserResolver(fn () => $apiKey->user);
+            $request->attributes->set('api_key', $apiKey);
         }
 
         if ($requiredAbility && ! $apiKey->can($requiredAbility)) {
@@ -40,12 +50,6 @@ class AuthenticateApiKey
                 'message' => "This API key does not have the required ability: {$requiredAbility}",
             ], 403);
         }
-
-        $apiKey->touchLastUsed();
-
-        // Bind user to request
-        $request->setUserResolver(fn () => $apiKey->user);
-        $request->attributes->set('api_key', $apiKey);
 
         return $next($request);
     }

@@ -80,16 +80,15 @@
                 Send to Client
             </button>
 
-            <!-- Share via WhatsApp (Bilingual Urdu & English) -->
+            <!-- Share via WhatsApp -->
             @php
                 $merchantName = $invoice->user->company_name ?: $invoice->user->name;
                 $balanceStr = $invoice->currency . ' ' . number_format($invoice->balance_due ?? $invoice->total, 2);
                 $dueDateStr = $invoice->due_date->format('M d, Y');
-                $waRawMessage = "Assalam-o-Alaikum {$invoice->client->name},\n\n"
+                $waRawMessage = "Hello {$invoice->client->name},\n\n"
                     . "Here is your Invoice #{$invoice->invoice_number} for {$balanceStr} from {$merchantName}.\n"
                     . "Due Date: {$dueDateStr}\n\n"
                     . "View & Pay Online:\n{$invoice->public_url}\n\n"
-                    . "آپ کی ادائیگی کا انتظار رہے گا، شکریہ!\n"
                     . "Thank you for your business!";
                 $waInvoiceText = urlencode($waRawMessage);
                 $waClientPhone = preg_replace('/[^0-9]/', '', $invoice->client->phone ?? '');
@@ -253,7 +252,7 @@
                         <td class="py-2.5 px-3 font-mono text-[11px] text-slate-500">
                             {{ $payment->reference_number ?: '—' }}
                             @if($payment->proof_file)
-                                <a href="{{ asset('storage/' . $payment->proof_file) }}" target="_blank" class="ml-1 inline-flex items-center text-blue-600 hover:underline text-[10px]" title="View proof document">
+                                <a href="{{ route('invoices.payments.proof', [$invoice, $payment]) }}" target="_blank" class="ml-1 inline-flex items-center text-blue-600 hover:underline text-[10px]" title="View proof document">
                                     <i data-lucide="paperclip" class="w-3 h-3"></i> Proof
                                 </a>
                             @endif

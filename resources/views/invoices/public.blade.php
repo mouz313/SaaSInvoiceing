@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ app()->getLocale() === 'ur' ? 'rtl' : 'ltr' }}" class="h-full">
+<html lang="en" class="h-full">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -84,13 +84,6 @@
 
             <!-- Client Buttons -->
             <div class="flex items-center gap-2.5 flex-wrap">
-                <!-- Urdu / English Switcher -->
-                <a href="{{ route('locale.switch', app()->getLocale() === 'ur' ? 'en' : 'ur') }}" 
-                   class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition inline-flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 shadow-xs">
-                    <i data-lucide="languages" class="w-3.5 h-3.5 text-blue-600 dark:text-blue-400"></i>
-                    <span>{{ app()->getLocale() === 'ur' ? 'English' : 'اردو' }}</span>
-                </a>
-
                 <!-- Download PDF -->
                 <a href="{{ route('invoices.public.pdf', $invoice->public_token) }}" 
                    class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition inline-flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">

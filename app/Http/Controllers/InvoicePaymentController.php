@@ -6,14 +6,13 @@ use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class InvoicePaymentController extends Controller
 {
     public function store(Request $request, Invoice $invoice): RedirectResponse
     {
-        if ($invoice->user_id !== auth()->id()) {
-            abort(403);
-        }
+        $this->authorizePaymentAction($invoice);
 
         $balance = (float) ($invoice->balance_due ?? $invoice->total);
 
@@ -38,9 +37,7 @@ class InvoicePaymentController extends Controller
 
     public function approve(Invoice $invoice, InvoicePayment $payment): RedirectResponse
     {
-        if ($invoice->user_id !== auth()->id() || $payment->invoice_id !== $invoice->id) {
-            abort(403);
-        }
+        $this->authorizePaymentAction($invoice, $payment);
 
         $payment->update([
             'status' => 'completed',
@@ -53,9 +50,7 @@ class InvoicePaymentController extends Controller
 
     public function reject(Invoice $invoice, InvoicePayment $payment): RedirectResponse
     {
-        if ($invoice->user_id !== auth()->id() || $payment->invoice_id !== $invoice->id) {
-            abort(403);
-        }
+        $this->authorizePaymentAction($invoice, $payment);
 
         $payment->update([
             'status' => 'rejected',
@@ -68,14 +63,70 @@ class InvoicePaymentController extends Controller
 
     public function destroy(Invoice $invoice, InvoicePayment $payment): RedirectResponse
     {
-        if ($invoice->user_id !== auth()->id() || $payment->invoice_id !== $invoice->id) {
-            abort(403);
-        }
+        $this->authorizePaymentAction($invoice, $payment);
 
         $payment->delete();
 
         $invoice->recalculatePaymentTotals();
 
         return back()->with('success', 'Payment record deleted and invoice balance recalculated.');
+    }
+
+    private function authorizePaymentAction(Invoice $invoice, ?InvoicePayment $payment = null): void
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            abort(401);
+        }
+
+        if ($user->isAdmin()) {
+            return;
+        }
+
+        if ($payment && $payment->invoice_id !== $invoice->id) {
+            abort(403);
+        }
+
+        if ($invoice->user_id === $user->id) {
+            return;
+        }
+
+        $role = $user->roleInAccount($invoice->user);
+
+        if (! in_array($role, ['owner', 'admin', 'accountant'], true)) {
+            abort(403, 'Your role does not have permission to manage invoice payments.');
+        }
+    }
+
+    /**
+     * Authenticated download of payment proof receipt.
+     */
+    public function downloadProof(Invoice $invoice, InvoicePayment $payment)
+    {
+        $user = auth()->user();
+
+        $isOwner = ($invoice->user_id === $user->id);
+        $isTeam = $user->roleInAccount($invoice->user) !== 'none';
+        $isAdmin = $user->isAdmin();
+
+        if (! ($isOwner || $isTeam || $isAdmin) || $payment->invoice_id !== $invoice->id) {
+            abort(403);
+        }
+
+        if (empty($payment->proof_file)) {
+            abort(404, 'No proof file attached to this payment.');
+        }
+
+        // Support private disk and fallback to public disk for legacy records
+        if (Storage::disk('local')->exists($payment->proof_file)) {
+            return Storage::disk('local')->response($payment->proof_file);
+        }
+
+        if (Storage::disk('public')->exists($payment->proof_file)) {
+            return Storage::disk('public')->response($payment->proof_file);
+        }
+
+        abort(404, 'File not found on storage.');
     }
 }

@@ -48,16 +48,6 @@ Route::get('/pay/{token}/pdf', [PublicInvoiceController::class, 'pdf'])->name('i
 Route::post('/pay/{token}/checkout', [PublicInvoiceController::class, 'checkout'])->name('invoices.public.checkout')->middleware('throttle:public-pay');
 Route::post('/pay/{token}/proof', [PublicInvoiceController::class, 'submitProof'])->name('invoices.public.proof')->middleware('throttle:public-pay');
 Route::get('/pay/{token}/success', [PublicInvoiceController::class, 'success'])->name('invoices.public.success');
-Route::get('/locale/{locale}', function (string $locale) {
-    if (in_array($locale, ['en', 'ur'], true)) {
-        session(['locale' => $locale]);
-        if (auth()->check()) {
-            auth()->user()->update(['locale' => $locale]);
-        }
-    }
-
-    return back();
-})->name('locale.switch');
 
 // Public Client Estimate / Proposal Portal
 Route::get('/estimate/{token}', [EstimateController::class, 'publicView'])->name('estimates.public');
@@ -128,6 +118,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/invoices/{invoice}/payments/{payment}/approve', [InvoicePaymentController::class, 'approve'])->name('invoices.payments.approve');
     Route::post('/invoices/{invoice}/payments/{payment}/reject', [InvoicePaymentController::class, 'reject'])->name('invoices.payments.reject');
     Route::delete('/invoices/{invoice}/payments/{payment}', [InvoicePaymentController::class, 'destroy'])->name('invoices.payments.destroy');
+    Route::get('/invoices/{invoice}/payments/{payment}/proof', [InvoicePaymentController::class, 'downloadProof'])->name('invoices.payments.proof');
 
     // Recurring Invoices (Auto-Billing)
     Route::resource('recurring', RecurringInvoiceController::class);
@@ -184,6 +175,7 @@ Route::middleware('auth')->group(function () {
 
     // Team & Multi-User Roles
     Route::resource('teams', TeamController::class)->except(['create', 'show', 'edit']);
+    Route::post('/teams/switch-account', [TeamController::class, 'switchAccount'])->name('teams.switch-account');
 
     // Bank Statement Import & Reconciliation
     Route::get('/bank-sync', [BankSyncController::class, 'index'])->name('bank-sync.index');

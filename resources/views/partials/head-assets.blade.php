@@ -1,7 +1,7 @@
-<!-- Google Fonts: Plus Jakarta Sans, Playfair Display, JetBrains Mono, Noto Nastaliq Urdu -->
+<!-- Google Fonts: Plus Jakarta Sans, Playfair Display, JetBrains Mono -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@400;600&family=Noto+Nastaliq+Urdu:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 
 <!-- Browser Favicon -->
 @if(setting('app_favicon'))
@@ -18,7 +18,6 @@
             extend: {
                 fontFamily: {
                     sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-                    urdu: ['"Noto Nastaliq Urdu"', 'serif'],
                 },
                 colors: {
                     slate: {
@@ -45,11 +44,6 @@
     .bg-gradient-to-r.from-blue-700.via-indigo-700.to-slate-900 {
         background-color: #2563eb !important;
         background-image: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%) !important;
-    }
-
-    /* Urdu Localization & RTL typography */
-    html[lang="ur"] body, html[dir="rtl"] body {
-        font-family: 'Noto Nastaliq Urdu', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     }
 </style>
 

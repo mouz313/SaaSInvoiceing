@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ApiKey;
 use App\Models\Webhook;
+use App\Services\UrlSecurityValidator;
 use App\Services\WebhookDispatcher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -65,6 +66,8 @@ class DeveloperController extends Controller
             'events' => ['required', 'array', 'min:1'],
             'events.*' => ['string', 'in:invoice.created,invoice.paid,invoice.payment_received,invoice.overdue,*'],
         ]);
+
+        UrlSecurityValidator::assertSafeWebhookUrl($validated['url']);
 
         $request->user()->webhooks()->create([
             'url' => $validated['url'],

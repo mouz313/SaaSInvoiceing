@@ -21,8 +21,10 @@ class InvoiceController extends Controller
     {
         $search = $request->input('search');
         $status = $request->input('status');
+        $user = Auth::user();
+        $owner = $user->currentAccountOwner();
 
-        $invoices = Auth::user()->invoices()
+        $invoices = $owner->invoices()
             ->with('client')
             ->when($search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
@@ -46,27 +48,32 @@ class InvoiceController extends Controller
     public function create(Request $request): View|RedirectResponse
     {
         $user = Auth::user();
+        $owner = $user->currentAccountOwner();
 
-        if (! $user->hasCredits()) {
+        if (! $user->canManageInvoices($owner)) {
+            abort(403, 'Your role (Viewer) does not permit creating invoices.');
+        }
+
+        if (! $owner->hasCredits()) {
             return redirect()->route('dashboard')
                 ->with('error', 'You have exhausted your invoice credits. Please upgrade your package to create more invoices.');
         }
 
-        $clients = $user->clients()->orderBy('name')->get();
-        $logos = $user->logos()->latest()->get();
-        $products = $user->products()->with('category')->latest()->get();
-        $categories = $user->productCategories()->get();
+        $clients = $owner->clients()->orderBy('name')->get();
+        $logos = $owner->logos()->latest()->get();
+        $products = $owner->products()->with('category')->latest()->get();
+        $categories = $owner->productCategories()->get();
 
         // Auto-generate invoice number
-        $latestInvoice = $user->invoices()->latest('id')->first();
+        $latestInvoice = $owner->invoices()->latest('id')->first();
         $nextId = $latestInvoice ? ($latestInvoice->id + 1) : 1;
         $defaultNumber = 'INV-'.date('Y').'-'.str_pad((string) $nextId, 4, '0', STR_PAD_LEFT);
 
         $templates = InvoiceTemplate::where('is_active', true)->orderBy('sort_order')->get();
-        $ownedSlugs = $user->ownedTemplateSlugs();
+        $ownedSlugs = $owner->ownedTemplateSlugs();
         $requestedStyle = $request->query('style');
         $defaultStyle = ($requestedStyle && in_array($requestedStyle, $ownedSlugs, true)) ? $requestedStyle : 'minimalist';
-        $mockInvoice = InvoiceTemplate::sampleInvoice($user);
+        $mockInvoice = InvoiceTemplate::sampleInvoice($owner);
 
         return view('invoices.create', compact('clients', 'defaultNumber', 'logos', 'products', 'categories', 'templates', 'ownedSlugs', 'defaultStyle', 'mockInvoice'));
     }
@@ -74,8 +81,13 @@ class InvoiceController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $user = Auth::user();
+        $owner = $user->currentAccountOwner();
 
-        if (! $user->hasCredits()) {
+        if (! $user->canManageInvoices($owner)) {
+            abort(403, 'Your role (Viewer) does not permit creating invoices.');
+        }
+
+        if (! $owner->hasCredits()) {
             return redirect()->route('dashboard')
                 ->with('error', 'You have exhausted your invoice credits. Please upgrade your package.');
         }
@@ -89,8 +101,8 @@ class InvoiceController extends Controller
             'style' => [
                 'required',
                 'string',
-                function ($attribute, $value, $fail) use ($user) {
-                    if (! $user->hasTemplateAccess($value)) {
+                function ($attribute, $value, $fail) use ($owner) {
+                    if (! $owner->hasTemplateAccess($value)) {
                         $fail("You do not have access to the '{$value}' template. Please unlock it from the Template Store first.");
                     }
                 },
@@ -113,15 +125,15 @@ class InvoiceController extends Controller
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
         ]);
 
-        // Ensure logo belongs to user
+        // Ensure logo belongs to owner
         if (! empty($validated['logo_id'])) {
-            $user->logos()->findOrFail($validated['logo_id']);
+            $owner->logos()->findOrFail($validated['logo_id']);
         }
 
-        // Check client belongs to user
-        $client = $user->clients()->findOrFail($validated['client_id']);
+        // Check client belongs to owner
+        $client = $owner->clients()->findOrFail($validated['client_id']);
 
-        $invoice = DB::transaction(function () use ($user, $validated) {
+        $invoice = DB::transaction(function () use ($owner, $validated) {
             $taxRate = (float) ($validated['tax_rate'] ?? 0);
             $taxAuthority = $validated['tax_authority'] ?? null;
             $whtRate = (float) ($validated['wht_rate'] ?? 0);
@@ -173,7 +185,7 @@ class InvoiceController extends Controller
 
             $total = max(0, round(($taxable + $taxAmount + $additionalChargesTotal) - $whtAmount, 2));
 
-            $invoice = $user->invoices()->create([
+            $invoice = $owner->invoices()->create([
                 'client_id' => $validated['client_id'],
                 'invoice_number' => $validated['invoice_number'],
                 'invoice_date' => $validated['invoice_date'],
@@ -201,7 +213,7 @@ class InvoiceController extends Controller
                 $invoice->items()->create($itemData);
             }
 
-            $user->decrementCredits();
+            $owner->decrementCredits();
 
             return $invoice;
         });
@@ -223,7 +235,7 @@ class InvoiceController extends Controller
         }
 
         if ($request->filled('time_entry_ids')) {
-            Auth::user()->timeEntries()
+            $owner->timeEntries()
                 ->whereIn('id', (array) $request->input('time_entry_ids'))
                 ->update([
                     'is_billed' => true,
@@ -232,7 +244,7 @@ class InvoiceController extends Controller
         }
 
         if ($request->filled('expense_ids')) {
-            Auth::user()->expenses()
+            $owner->expenses()
                 ->whereIn('id', (array) $request->input('expense_ids'))
                 ->update([
                     'is_billed' => true,
@@ -254,15 +266,16 @@ class InvoiceController extends Controller
 
     public function edit(Invoice $invoice): View
     {
-        $this->authorizeInvoice($invoice);
+        $this->authorizeInvoice($invoice, true);
+        $owner = $invoice->user;
 
         $invoice->load(['client', 'items']);
-        $clients = Auth::user()->clients()->orderBy('name')->get();
-        $logos = Auth::user()->logos()->latest()->get();
-        $products = Auth::user()->products()->with('category')->latest()->get();
-        $categories = Auth::user()->productCategories()->get();
+        $clients = $owner->clients()->orderBy('name')->get();
+        $logos = $owner->logos()->latest()->get();
+        $products = $owner->products()->with('category')->latest()->get();
+        $categories = $owner->productCategories()->get();
         $templates = InvoiceTemplate::where('is_active', true)->orderBy('sort_order')->get();
-        $ownedSlugs = Auth::user()->ownedTemplateSlugs();
+        $ownedSlugs = $owner->ownedTemplateSlugs();
         $mockInvoice = $invoice;
 
         return view('invoices.edit', compact('invoice', 'clients', 'logos', 'products', 'categories', 'templates', 'ownedSlugs', 'mockInvoice'));
@@ -270,8 +283,8 @@ class InvoiceController extends Controller
 
     public function update(Request $request, Invoice $invoice): RedirectResponse
     {
-        $this->authorizeInvoice($invoice);
-        $user = Auth::user();
+        $this->authorizeInvoice($invoice, true);
+        $owner = $invoice->user;
 
         $validated = $request->validate([
             'client_id' => ['required', 'exists:clients,id'],
@@ -282,9 +295,9 @@ class InvoiceController extends Controller
             'style' => [
                 'required',
                 'string',
-                function ($attribute, $value, $fail) use ($user, $invoice) {
+                function ($attribute, $value, $fail) use ($owner, $invoice) {
                     // Allow keeping existing style if already on invoice or if user owns it
-                    if ($value !== $invoice->style && ! $user->hasTemplateAccess($value)) {
+                    if ($value !== $invoice->style && ! $owner->hasTemplateAccess($value)) {
                         $fail("You do not have access to the '{$value}' template. Please unlock it from the Template Store first.");
                     }
                 },
@@ -402,7 +415,7 @@ class InvoiceController extends Controller
 
     public function destroy(Invoice $invoice): RedirectResponse
     {
-        $this->authorizeInvoice($invoice);
+        $this->authorizeInvoice($invoice, true);
 
         $invoice->delete();
 
@@ -411,7 +424,7 @@ class InvoiceController extends Controller
 
     public function updateStatus(Request $request, Invoice $invoice): RedirectResponse
     {
-        $this->authorizeInvoice($invoice);
+        $this->authorizeInvoice($invoice, true);
 
         $validated = $request->validate([
             'status' => ['required', 'in:draft,sent,paid,overdue'],
@@ -428,15 +441,15 @@ class InvoiceController extends Controller
 
     public function updateStyle(Request $request, Invoice $invoice): RedirectResponse
     {
-        $this->authorizeInvoice($invoice);
-        $user = Auth::user();
+        $this->authorizeInvoice($invoice, true);
+        $owner = $invoice->user;
 
         $validated = $request->validate([
             'style' => [
                 'required',
                 'string',
-                function ($attribute, $value, $fail) use ($user) {
-                    if (! $user->hasTemplateAccess($value)) {
+                function ($attribute, $value, $fail) use ($owner) {
+                    if (! $owner->hasTemplateAccess($value)) {
                         $fail("You do not have access to the '{$value}' template. Please unlock it from the Template Store first.");
                     }
                 },
@@ -499,10 +512,30 @@ class InvoiceController extends Controller
         return $pdf->download($fileName);
     }
 
-    private function authorizeInvoice(Invoice $invoice): void
+    private function authorizeInvoice(Invoice $invoice, bool $requireManage = false): void
     {
-        if ($invoice->user_id !== Auth::id() && ! Auth::user()?->isAdmin()) {
+        $user = Auth::user();
+
+        if (! $user) {
+            abort(401);
+        }
+
+        if ($user->isAdmin()) {
+            return;
+        }
+
+        if ($invoice->user_id === $user->id) {
+            return;
+        }
+
+        $role = $user->roleInAccount($invoice->user);
+
+        if ($role === 'none') {
             abort(403, 'Unauthorized access to this invoice.');
+        }
+
+        if ($requireManage && $role === 'viewer') {
+            abort(403, 'Your role (Viewer) does not permit modifying invoices.');
         }
     }
 }

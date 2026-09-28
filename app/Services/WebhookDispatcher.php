@@ -48,8 +48,24 @@ class WebhookDispatcher
         $responseBody = null;
         $success = false;
 
+        if (! UrlSecurityValidator::isSafeWebhookUrl($webhook->url)) {
+            Log::warning('Webhook delivery blocked due to unsafe/private address: '.$webhook->url, [
+                'webhook_id' => $webhook->id,
+            ]);
+
+            return WebhookLog::create([
+                'webhook_id' => $webhook->id,
+                'event' => $event,
+                'payload' => $payload,
+                'response_status' => 400,
+                'response_body' => 'Blocked: Webhook URL points to non-public or restricted network address.',
+                'successful' => false,
+            ]);
+        }
+
         try {
-            $response = Http::timeout(5)
+            $response = Http::withoutRedirecting()
+                ->timeout(5)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
                     'User-Agent' => 'InvoiceHub-Webhook-Agent/1.0',
@@ -60,7 +76,7 @@ class WebhookDispatcher
                 ->post($webhook->url);
 
             $statusCode = $response->status();
-            $responseBody = substr($response->body(), 0, 1000);
+            $responseBody = substr(strip_tags($response->body()), 0, 500);
             $success = $response->successful();
         } catch (\Throwable $e) {
             $statusCode = 0;

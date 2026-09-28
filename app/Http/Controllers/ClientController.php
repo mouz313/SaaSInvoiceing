@@ -23,8 +23,10 @@ class ClientController extends Controller
     public function index(Request $request): View
     {
         $search = $request->input('search');
+        $user = Auth::user();
+        $owner = $user->currentAccountOwner();
 
-        $clients = Auth::user()->clients()
+        $clients = $owner->clients()
             ->when($search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
@@ -42,9 +44,16 @@ class ClientController extends Controller
 
     public function create(): View|RedirectResponse
     {
-        if (! Auth::user()->canCreateClient()) {
+        $user = Auth::user();
+        $owner = $user->currentAccountOwner();
+
+        if ($user->isViewer($owner)) {
+            abort(403, 'Your role (Viewer) does not permit adding clients.');
+        }
+
+        if (! $owner->canCreateClient()) {
             return redirect()->route('clients.index')
-                ->with('error', 'You have reached your tier limit of '.Auth::user()->clientLimit().' clients. Please upgrade your package to add more clients.');
+                ->with('error', 'You have reached your tier limit of '.$owner->clientLimit().' clients. Please upgrade your package to add more clients.');
         }
 
         return view('clients.create');
@@ -52,9 +61,16 @@ class ClientController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        if (! Auth::user()->canCreateClient()) {
+        $user = Auth::user();
+        $owner = $user->currentAccountOwner();
+
+        if ($user->isViewer($owner)) {
+            abort(403, 'Your role (Viewer) does not permit adding clients.');
+        }
+
+        if (! $owner->canCreateClient()) {
             return redirect()->route('clients.index')
-                ->with('error', 'You have reached your tier limit of '.Auth::user()->clientLimit().' clients. Please upgrade your package to add more clients.');
+                ->with('error', 'You have reached your tier limit of '.$owner->clientLimit().' clients. Please upgrade your package to add more clients.');
         }
 
         $validated = $request->validate([
@@ -63,7 +79,7 @@ class ClientController extends Controller
                 'nullable',
                 'email',
                 'max:255',
-                Rule::unique('clients')->where(fn ($q) => $q->where('user_id', Auth::id())),
+                Rule::unique('clients')->where(fn ($q) => $q->where('user_id', $owner->id)),
             ],
             'phone' => ['nullable', 'string', 'max:50'],
             'company_name' => ['nullable', 'string', 'max:255'],
@@ -86,7 +102,7 @@ class ClientController extends Controller
             unset($validated['password']);
         }
 
-        Auth::user()->clients()->create($validated);
+        $owner->clients()->create($validated);
 
         return redirect()->route('clients.index')->with('success', 'Client created successfully.');
     }
@@ -103,14 +119,14 @@ class ClientController extends Controller
 
     public function edit(Client $client): View
     {
-        $this->authorizeClient($client);
+        $this->authorizeClient($client, true);
 
         return view('clients.edit', compact('client'));
     }
 
     public function update(Request $request, Client $client): RedirectResponse
     {
-        $this->authorizeClient($client);
+        $this->authorizeClient($client, true);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -118,7 +134,7 @@ class ClientController extends Controller
                 'nullable',
                 'email',
                 'max:255',
-                Rule::unique('clients')->where(fn ($q) => $q->where('user_id', Auth::id()))->ignore($client->id),
+                Rule::unique('clients')->where(fn ($q) => $q->where('user_id', $client->user_id))->ignore($client->id),
             ],
             'phone' => ['nullable', 'string', 'max:50'],
             'company_name' => ['nullable', 'string', 'max:255'],
@@ -148,7 +164,7 @@ class ClientController extends Controller
 
     public function destroy(Client $client): RedirectResponse
     {
-        $this->authorizeClient($client);
+        $this->authorizeClient($client, true);
 
         $client->delete();
 
@@ -253,10 +269,30 @@ class ClientController extends Controller
         ]);
     }
 
-    private function authorizeClient(Client $client): void
+    private function authorizeClient(Client $client, bool $requireManage = false): void
     {
-        if ($client->user_id !== Auth::id()) {
+        $user = Auth::user();
+
+        if (! $user) {
+            abort(401);
+        }
+
+        if ($user->isAdmin()) {
+            return;
+        }
+
+        if ($client->user_id === $user->id) {
+            return;
+        }
+
+        $role = $user->roleInAccount($client->user);
+
+        if ($role === 'none') {
             abort(403, 'Unauthorized access to this client.');
+        }
+
+        if ($requireManage && $role === 'viewer') {
+            abort(403, 'Your role (Viewer) does not permit modifying clients.');
         }
     }
 

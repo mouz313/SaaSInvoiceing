@@ -143,14 +143,25 @@ class AuthController extends Controller
             ], 401);
         }
 
+        if (! ($verifiedUser['email_verified'] ?? false)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please verify your email address before signing in.',
+            ], 403);
+        }
+
         $firebaseUid = $verifiedUser['uid'];
         $email = $verifiedUser['email'];
         $name = $verifiedUser['name'] ?: explode('@', $email)[0];
         $avatarUrl = $verifiedUser['avatar_url'] ?? null;
 
-        $user = User::where('firebase_uid', $firebaseUid)
-            ->orWhere('email', $email)
-            ->first();
+        // 1. Prioritize lookup by Firebase UID
+        $user = User::where('firebase_uid', $firebaseUid)->first();
+
+        // 2. Fallback to lookup by verified email
+        if (! $user) {
+            $user = User::where('email', $email)->first();
+        }
 
         if (! $user) {
             $user = User::create([
@@ -160,6 +171,7 @@ class AuthController extends Controller
                 'avatar_url' => $avatarUrl,
                 'role' => 'user',
                 'invoice_credits' => 5,
+                'email_verified_at' => now(),
             ]);
 
             try {
@@ -171,6 +183,7 @@ class AuthController extends Controller
             $user->update([
                 'firebase_uid' => $firebaseUid,
                 'avatar_url' => $avatarUrl ?? $user->avatar_url,
+                'email_verified_at' => $user->email_verified_at ?? now(),
             ]);
         }
 

@@ -42,14 +42,13 @@ use Illuminate\Notifications\Notifiable;
     'jazzcash_hash_key',
     'easypaisa_store_id',
     'easypaisa_hash_key',
-    'locale',
     'default_currency',
     'default_notes',
     'default_payment_instructions',
     'invoice_credits',
     'package_id',
 ])]
-#[Hidden(['password', 'remember_token', 'jazzcash_password', 'jazzcash_hash_key', 'easypaisa_hash_key'])]
+#[Hidden(['password', 'remember_token', 'jazzcash_password', 'jazzcash_hash_key', 'easypaisa_hash_key', 'jazzcash_merchant_id', 'easypaisa_store_id'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -66,6 +65,11 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'invoice_credits' => 'integer',
+            'jazzcash_merchant_id' => 'encrypted',
+            'jazzcash_password' => 'encrypted',
+            'jazzcash_hash_key' => 'encrypted',
+            'easypaisa_store_id' => 'encrypted',
+            'easypaisa_hash_key' => 'encrypted',
         ];
     }
 
@@ -306,10 +310,33 @@ class User extends Authenticatable
     }
 
     /**
+     * Determine active account owner (for team collaboration).
+     */
+    public function currentAccountOwner(): User
+    {
+        $ownerId = session('active_account_owner_id');
+
+        if ($ownerId && (int) $ownerId !== (int) $this->id) {
+            $membership = TeamMember::where('owner_id', $ownerId)
+                ->where('user_id', $this->id)
+                ->where('status', 'active')
+                ->first();
+
+            if ($membership && $membership->owner) {
+                return $membership->owner;
+            }
+        }
+
+        return $this;
+    }
+
+    /**
      * Determine active role in account.
      */
-    public function roleInAccount(User $owner): string
+    public function roleInAccount(?User $owner = null): string
     {
+        $owner ??= $this->currentAccountOwner();
+
         if ($this->id === $owner->id) {
             return 'owner';
         }
@@ -325,22 +352,34 @@ class User extends Authenticatable
     /**
      * Permission checks for team roles.
      */
-    public function canManageSettings(): bool
+    public function canManageSettings(?User $owner = null): bool
     {
-        return true; // Owner/Admin
+        $owner ??= $this->currentAccountOwner();
+        $role = $this->roleInAccount($owner);
+
+        return in_array($role, ['owner', 'admin'], true);
     }
 
-    public function canManageInvoices(User $owner): bool
+    public function canManageInvoices(?User $owner = null): bool
     {
+        $owner ??= $this->currentAccountOwner();
         $role = $this->roleInAccount($owner);
 
         return in_array($role, ['owner', 'admin', 'accountant'], true);
     }
 
-    public function canRecordPayments(User $owner): bool
+    public function canRecordPayments(?User $owner = null): bool
     {
+        $owner ??= $this->currentAccountOwner();
         $role = $this->roleInAccount($owner);
 
         return in_array($role, ['owner', 'admin', 'accountant'], true);
+    }
+
+    public function isViewer(?User $owner = null): bool
+    {
+        $owner ??= $this->currentAccountOwner();
+
+        return $this->roleInAccount($owner) === 'viewer';
     }
 }

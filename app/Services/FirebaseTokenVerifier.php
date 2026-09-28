@@ -41,7 +41,7 @@ class FirebaseTokenVerifier
     /**
      * Verify a Firebase ID token and return verified user payload, or null if invalid.
      *
-     * @return array{uid: string, email: string, name: ?string, avatar_url: ?string}|null
+     * @return array{uid: string, email: string, email_verified: bool, name: ?string, avatar_url: ?string}|null
      */
     public function verify(string $idToken): ?array
     {
@@ -100,6 +100,7 @@ class FirebaseTokenVerifier
             return [
                 'uid' => $user['localId'],
                 'email' => $user['email'],
+                'email_verified' => (bool) ($user['emailVerified'] ?? false),
                 'name' => $user['displayName'] ?? null,
                 'avatar_url' => $user['photoUrl'] ?? null,
             ];
