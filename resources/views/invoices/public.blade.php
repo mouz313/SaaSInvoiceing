@@ -168,6 +168,12 @@
             @include($viewName, ['invoice' => $invoice, 'isPdf' => false])
         </div>
 
+        @if($invoice->isFbrSynced())
+        <div class="max-w-4xl mx-auto mt-4 no-print">
+            @include('partials.fbr-badge', ['invoice' => $invoice])
+        </div>
+        @endif
+
         <!-- Payment History Ledger (if payments exist) -->
         @if($invoice->payments->count() > 0)
         <div class="no-print max-w-4xl mx-auto mt-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
@@ -244,6 +250,98 @@
                     });
                 }
              }">
+
+            <!-- Promotional Coupon / Discount Engine -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs"
+                 x-data="{
+                    couponCode: '{{ $invoice->coupon_code }}',
+                    hasCoupon: {{ $invoice->coupon_code ? 'true' : 'false' }},
+                    loading: false,
+                    message: '',
+                    isError: false,
+                    applyCoupon() {
+                        if (!this.couponCode.trim()) return;
+                        this.loading = true;
+                        this.message = '';
+                        this.isError = false;
+
+                        fetch('{{ route('invoices.public.coupon.apply', $invoice->public_token) }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({ code: this.couponCode })
+                        })
+                        .then(res => res.json().then(data => ({ status: res.status, body: data })))
+                        .then(({ status, body }) => {
+                            this.loading = false;
+                            if (status === 200 && body.success) {
+                                this.hasCoupon = true;
+                                this.message = body.message;
+                                this.isError = false;
+                                setTimeout(() => window.location.reload(), 600);
+                            } else {
+                                this.isError = true;
+                                this.message = body.message || 'Failed to apply coupon.';
+                            }
+                        })
+                        .catch(err => {
+                            this.loading = false;
+                            this.isError = true;
+                            this.message = 'Network error. Please try again.';
+                        });
+                    },
+                    removeCoupon() {
+                        this.loading = true;
+                        fetch('{{ route('invoices.public.coupon.remove', $invoice->public_token) }}', {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            }
+                        })
+                        .then(() => window.location.reload())
+                        .catch(() => window.location.reload());
+                    }
+                 }">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                            <i data-lucide="ticket-percent" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-900 dark:text-white">Have a Promo or Coupon Code?</h4>
+                            <p class="text-[11px] text-slate-400">Apply discounts provided by {{ $invoice->user->company_name ?: $invoice->user->name }}.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <template x-if="!hasCoupon">
+                            <div class="flex items-center gap-1.5 w-full sm:w-auto">
+                                <input type="text" x-model="couponCode" @keydown.enter.prevent="applyCoupon()" placeholder="ENTER CODE" class="uppercase font-mono text-xs px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 w-36 sm:w-44">
+                                <button type="button" @click="applyCoupon()" :disabled="loading" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                                    <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                                    <span x-text="loading ? 'Applying...' : 'Apply'"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <template x-if="hasCoupon">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex items-center gap-1 text-xs font-mono font-bold px-3 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                    <i data-lucide="tag" class="w-3.5 h-3.5"></i>
+                                    Applied: {{ $invoice->coupon_code }} (-{{ $invoice->currency }} {{ number_format($invoice->discount_amount, 2) }})
+                                </span>
+                                <button type="button" @click="removeCoupon()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold underline p-1">Remove</button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div x-show="message" x-cloak class="mt-2 text-xs font-medium" :class="isError ? 'text-rose-500' : 'text-emerald-600'" x-text="message"></div>
+            </div>
 
             <!-- Option 1: Card Online Checkout (Stripe) -->
             <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 rounded-2xl p-6">

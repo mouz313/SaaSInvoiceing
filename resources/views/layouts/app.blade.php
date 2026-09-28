@@ -199,6 +199,17 @@
                                 PK IBFT
                             </span>
                         </a>
+
+                        <a href="{{ route('merchant.coupons.index') }}" 
+                           class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('merchant.coupons.*') ? 'bg-amber-600 text-white shadow-sm shadow-amber-600/30' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="ticket-percent" class="w-4 h-4 {{ request()->routeIs('merchant.coupons.*') ? 'text-white' : 'text-amber-500' }}"></i>
+                                Coupons &amp; Discounts
+                            </div>
+                            <span class="text-xs px-2 py-0.5 rounded-full {{ request()->routeIs('merchant.coupons.*') ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }}">
+                                {{ Auth::user()->coupons()->count() }}
+                            </span>
+                        </a>
                     </div>
                 </div>
 

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SyncInvoiceWithFbrJob;
 use App\Mail\InvoiceSentMail;
 use App\Models\Invoice;
 use App\Models\InvoiceTemplate;
+use App\Services\Fbr\FbrApiService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -119,6 +121,7 @@ class InvoiceController extends Controller
             'additional_charges.*.value' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
             'payment_instructions' => ['nullable', 'string'],
+            'pct_code' => ['nullable', 'string', 'max:50'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
@@ -194,6 +197,7 @@ class InvoiceController extends Controller
                 'style' => $validated['style'],
                 'logo_id' => $validated['logo_id'] ?? null,
                 'currency' => $validated['currency'],
+                'pct_code' => $validated['pct_code'] ?? '9801.0000',
                 'subtotal' => $subtotal,
                 'tax_rate' => $taxRate,
                 'tax_amount' => $taxAmount,
@@ -217,6 +221,14 @@ class InvoiceController extends Controller
 
             return $invoice;
         });
+
+        if ($owner->fbr_enabled) {
+            try {
+                SyncInvoiceWithFbrJob::dispatch($invoice);
+            } catch (\Throwable $e) {
+                Log::warning('FBR auto-sync dispatch failed: '.$e->getMessage());
+            }
+        }
 
         if ($request->boolean('send_email_now') && $client->email) {
             try {
@@ -314,6 +326,7 @@ class InvoiceController extends Controller
             'additional_charges.*.value' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
             'payment_instructions' => ['nullable', 'string'],
+            'pct_code' => ['nullable', 'string', 'max:50'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
@@ -389,6 +402,7 @@ class InvoiceController extends Controller
                 'style' => $validated['style'],
                 'logo_id' => $validated['logo_id'] ?? null,
                 'currency' => $validated['currency'],
+                'pct_code' => $validated['pct_code'] ?? $invoice->pct_code ?? '9801.0000',
                 'subtotal' => $subtotal,
                 'tax_rate' => $taxRate,
                 'tax_amount' => $taxAmount,
@@ -411,6 +425,40 @@ class InvoiceController extends Controller
         });
 
         return redirect()->route('invoices.show', $invoice)->with('success', 'Invoice updated successfully.');
+    }
+
+    /**
+     * Submit or retry syncing an invoice with FBR Digital Invoicing.
+     */
+    public function syncFbr(Invoice $invoice, FbrApiService $fbrService): RedirectResponse
+    {
+        $this->authorizeInvoice($invoice, true);
+        $owner = Auth::user()->currentAccountOwner();
+
+        if (! $owner->fbr_enabled) {
+            return back()->with('error', 'FBR Integration is not enabled in your account settings.');
+        }
+
+        $result = $fbrService->syncInvoice($invoice);
+
+        if ($result['success']) {
+            $invoice->update([
+                'fbr_status' => 'synced',
+                'fbr_invoice_number' => $result['fbr_invoice_number'],
+                'fbr_qr_code_data' => $result['qr_data'],
+                'fbr_synced_at' => now(),
+                'fbr_error_message' => null,
+            ]);
+
+            return back()->with('success', "Invoice successfully registered with FBR! FBR Invoice Number: {$result['fbr_invoice_number']}");
+        }
+
+        $invoice->update([
+            'fbr_status' => 'failed',
+            'fbr_error_message' => $result['error'] ?? 'FBR sync failed.',
+        ]);
+
+        return back()->with('error', 'FBR Fiscalization failed: '.($result['error'] ?? 'Unknown error.'));
     }
 
     public function destroy(Invoice $invoice): RedirectResponse

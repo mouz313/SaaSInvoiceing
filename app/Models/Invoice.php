@@ -37,6 +37,8 @@ class Invoice extends Model
         'wht_amount',
         'discount_rate',
         'discount_amount',
+        'coupon_id',
+        'coupon_code',
         'additional_charges',
         'additional_charges_total',
         'total',
@@ -46,6 +48,12 @@ class Invoice extends Model
         'reminder_count',
         'notes',
         'payment_instructions',
+        'fbr_invoice_number',
+        'fbr_status',
+        'fbr_synced_at',
+        'fbr_qr_code_data',
+        'fbr_error_message',
+        'pct_code',
     ];
 
     protected static function booted(): void
@@ -84,7 +92,28 @@ class Invoice extends Model
             'total' => 'decimal:2',
             'amount_paid' => 'decimal:2',
             'balance_due' => 'decimal:2',
+            'fbr_synced_at' => 'datetime',
         ];
+    }
+
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
+    }
+
+    public function isFbrSynced(): bool
+    {
+        return $this->fbr_status === 'synced';
+    }
+
+    public function isFbrPending(): bool
+    {
+        return $this->fbr_status === 'pending';
+    }
+
+    public function isFbrFailed(): bool
+    {
+        return $this->fbr_status === 'failed';
     }
 
     public function user(): BelongsTo

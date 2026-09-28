@@ -193,6 +193,52 @@
         </div>
     </div>
 
+    <!-- FBR Digital Invoicing & POS Compliance Banner (Merchant Invoices) -->
+    @if(Auth::user()->currentAccountOwner()->fbr_enabled || $invoice->fbr_status === 'synced')
+    <div class="no-print bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl {{ $invoice->isFbrSynced() ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400' : ($invoice->isFbrFailed() ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400') }} flex items-center justify-center shrink-0">
+                <i data-lucide="qr-code" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-900 dark:text-white">FBR Digital Invoicing (IMS/POS)</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider
+                        @if($invoice->isFbrSynced()) bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300
+                        @elseif($invoice->isFbrFailed()) bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300
+                        @else bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 @endif">
+                        {{ $invoice->fbr_status ? strtoupper(str_replace('_', ' ', $invoice->fbr_status)) : 'PENDING SYNC' }}
+                    </span>
+                </div>
+                @if($invoice->isFbrSynced())
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
+                        FBR Fiscal Invoice #: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->fbr_invoice_number }}</strong>
+                        &bull; Synced: {{ $invoice->fbr_synced_at?->format('M d, Y H:i') }}
+                    </p>
+                @elseif($invoice->isFbrFailed())
+                    <p class="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5">
+                        {{ $invoice->fbr_error_message ?: 'Failed to register with FBR API.' }}
+                    </p>
+                @else
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Invoice is ready to be submitted to FBR Electronic Billing System.
+                    </p>
+                @endif
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <form method="POST" action="{{ route('invoices.fbr-sync', $invoice) }}">
+                @csrf
+                <button type="submit" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                    {{ $invoice->isFbrSynced() ? 'Re-Sync FBR' : 'Sync with FBR' }}
+                </button>
+            </form>
+        </div>
+    </div>
+    @endif
+
     <!-- Paper Container with Selected Style -->
     <div id="printable-invoice" class="rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden min-h-[700px] transition-all">
         @php
@@ -202,6 +248,12 @@
         @endphp
         @include($viewName, ['invoice' => $invoice, 'isPdf' => false])
     </div>
+
+    @if($invoice->isFbrSynced())
+    <div class="no-print">
+        @include('partials.fbr-badge', ['invoice' => $invoice])
+    </div>
+    @endif
 
     <!-- Payment Records & Transaction History -->
     @if($invoice->payments->count() > 0 || ($invoice->amount_paid ?? 0) > 0)

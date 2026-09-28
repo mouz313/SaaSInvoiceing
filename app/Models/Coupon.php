@@ -4,11 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Coupon extends Model
 {
     protected $fillable = [
+        'user_id',
+        'client_id',
         'code',
         'name',
         'description',
@@ -38,9 +41,31 @@ class Coupon extends Model
         ];
     }
 
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
     public function usages(): HasMany
     {
         return $this->hasMany(CouponUsage::class);
+    }
+
+    public function scopeForUser(Builder $query, int|User $user): Builder
+    {
+        $userId = $user instanceof User ? $user->id : $user;
+
+        return $query->where('user_id', $userId);
+    }
+
+    public function scopePlatform(Builder $query): Builder
+    {
+        return $query->whereNull('user_id');
     }
 
     public function scopeActive(Builder $query): Builder
@@ -58,9 +83,9 @@ class Coupon extends Model
     }
 
     /**
-     * Check if coupon is currently valid for given amount and target type.
+     * Check if coupon is currently valid for given amount, target type, and optional client.
      */
-    public function isValid(?float $amount = null, ?string $targetType = null): bool
+    public function isValid(?float $amount = null, ?string $targetType = null, ?int $clientId = null): bool
     {
         if (! $this->is_active) {
             return false;
@@ -79,6 +104,10 @@ class Coupon extends Model
         }
 
         if ($targetType && $this->applies_to !== 'all' && $this->applies_to !== $targetType) {
+            return false;
+        }
+
+        if ($this->client_id && $clientId !== null && (int) $this->client_id !== (int) $clientId) {
             return false;
         }
 

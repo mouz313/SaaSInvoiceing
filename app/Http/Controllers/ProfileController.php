@@ -193,6 +193,35 @@ class ProfileController extends Controller
     }
 
     /**
+     * Section 6: Update FBR Digital Invoicing & POS credentials.
+     */
+    public function updateFbr(Request $request): RedirectResponse
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $validated = $request->validate([
+            'fbr_enabled' => ['nullable', 'boolean'],
+            'fbr_environment' => ['required', 'in:sandbox,production'],
+            'fbr_pos_id' => ['nullable', 'string', 'max:50'],
+            'fbr_pos_usin' => ['nullable', 'string', 'max:100'],
+            'fbr_bearer_token' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $validated['fbr_enabled'] = $request->boolean('fbr_enabled');
+
+        if (empty($validated['fbr_bearer_token'])) {
+            unset($validated['fbr_bearer_token']);
+        }
+
+        $user->update($validated);
+
+        return redirect()->route('profile.edit', ['tab' => 'fbr'])
+            ->with('success', 'FBR Digital Invoicing & POS settings saved successfully.')
+            ->with('active_tab', 'fbr');
+    }
+
+    /**
      * Upload an avatar using stream method to avoid PHP 8.5 Windows temp file issues.
      */
     private function handleAvatarUpload(Request $request, User $user): string

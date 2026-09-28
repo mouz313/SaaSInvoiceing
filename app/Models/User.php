@@ -42,13 +42,18 @@ use Illuminate\Notifications\Notifiable;
     'jazzcash_hash_key',
     'easypaisa_store_id',
     'easypaisa_hash_key',
+    'fbr_enabled',
+    'fbr_environment',
+    'fbr_pos_id',
+    'fbr_pos_usin',
+    'fbr_bearer_token',
     'default_currency',
     'default_notes',
     'default_payment_instructions',
     'invoice_credits',
     'package_id',
 ])]
-#[Hidden(['password', 'remember_token', 'jazzcash_password', 'jazzcash_hash_key', 'easypaisa_hash_key', 'jazzcash_merchant_id', 'easypaisa_store_id'])]
+#[Hidden(['password', 'remember_token', 'jazzcash_password', 'jazzcash_hash_key', 'easypaisa_hash_key', 'jazzcash_merchant_id', 'easypaisa_store_id', 'fbr_bearer_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -70,6 +75,8 @@ class User extends Authenticatable
             'jazzcash_hash_key' => 'encrypted',
             'easypaisa_store_id' => 'encrypted',
             'easypaisa_hash_key' => 'encrypted',
+            'fbr_enabled' => 'boolean',
+            'fbr_bearer_token' => 'encrypted',
         ];
     }
 
@@ -144,6 +151,11 @@ class User extends Authenticatable
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function coupons(): HasMany
+    {
+        return $this->hasMany(Coupon::class);
     }
 
     public function transactions(): HasMany

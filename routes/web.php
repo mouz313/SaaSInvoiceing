@@ -17,6 +17,7 @@ use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\InvoicePaymentController;
+use App\Http\Controllers\MerchantCouponController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
@@ -45,6 +46,8 @@ Route::get('/faq', [PageController::class, 'faq'])->name('pages.faq');
 // Public Client Invoice & Payment Portal
 Route::get('/pay/{token}', [PublicInvoiceController::class, 'show'])->name('invoices.public');
 Route::get('/pay/{token}/pdf', [PublicInvoiceController::class, 'pdf'])->name('invoices.public.pdf');
+Route::post('/pay/{token}/apply-coupon', [PublicInvoiceController::class, 'applyCoupon'])->name('invoices.public.coupon.apply');
+Route::post('/pay/{token}/remove-coupon', [PublicInvoiceController::class, 'removeCoupon'])->name('invoices.public.coupon.remove');
 Route::post('/pay/{token}/checkout', [PublicInvoiceController::class, 'checkout'])->name('invoices.public.checkout')->middleware('throttle:public-pay');
 Route::post('/pay/{token}/proof', [PublicInvoiceController::class, 'submitProof'])->name('invoices.public.proof')->middleware('throttle:public-pay');
 Route::get('/pay/{token}/success', [PublicInvoiceController::class, 'success'])->name('invoices.public.success');
@@ -110,6 +113,7 @@ Route::middleware('auth')->group(function () {
 
     // Invoicing Engine
     Route::resource('invoices', InvoiceController::class);
+    Route::post('/invoices/{invoice}/fbr-sync', [InvoiceController::class, 'syncFbr'])->name('invoices.fbr-sync');
     Route::patch('/invoices/{invoice}/status', [InvoiceController::class, 'updateStatus'])->name('invoices.update-status');
     Route::patch('/invoices/{invoice}/style', [InvoiceController::class, 'updateStyle'])->name('invoices.update-style');
     Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
@@ -119,6 +123,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/invoices/{invoice}/payments/{payment}/reject', [InvoicePaymentController::class, 'reject'])->name('invoices.payments.reject');
     Route::delete('/invoices/{invoice}/payments/{payment}', [InvoicePaymentController::class, 'destroy'])->name('invoices.payments.destroy');
     Route::get('/invoices/{invoice}/payments/{payment}/proof', [InvoicePaymentController::class, 'downloadProof'])->name('invoices.payments.proof');
+
+    // Merchant Promotional Coupons & Discounts
+    Route::resource('coupons', MerchantCouponController::class, ['as' => 'merchant'])->only(['index', 'store', 'destroy']);
+    Route::patch('/coupons/{coupon}/toggle-status', [MerchantCouponController::class, 'toggleStatus'])->name('merchant.coupons.toggle');
 
     // Recurring Invoices (Auto-Billing)
     Route::resource('recurring', RecurringInvoiceController::class);
@@ -159,6 +167,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/profile/business', [ProfileController::class, 'updateBusiness'])->name('profile.business');
     Route::put('/profile/invoicing', [ProfileController::class, 'updateInvoicing'])->name('profile.invoicing');
     Route::put('/profile/payments', [ProfileController::class, 'updateInvoicing'])->name('profile.payments');
+    Route::put('/profile/fbr', [ProfileController::class, 'updateFbr'])->name('profile.fbr');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
 
     // Stripe Billing & Packages

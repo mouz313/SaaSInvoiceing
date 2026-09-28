@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Invoice;
+use App\Services\CouponService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -208,5 +210,85 @@ class PublicInvoiceController extends Controller
 
         return redirect()->route('invoices.public', $token)
             ->with('success', '✅ Payment proof submitted successfully! The merchant has been notified to verify your transaction.');
+    }
+
+    /**
+     * Apply a promotional coupon to the invoice.
+     */
+    public function applyCoupon(Request $request, string $token, CouponService $couponService): JsonResponse|RedirectResponse
+    {
+        $invoice = Invoice::with(['client', 'user'])
+            ->where('public_token', $token)
+            ->firstOrFail();
+
+        if ($invoice->isPaid()) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'This invoice has already been paid.'], 422);
+            }
+
+            return back()->with('error', 'This invoice has already been paid.');
+        }
+
+        $code = (string) $request->input('code');
+        $validation = $couponService->validateInvoiceCoupon($code, $invoice, $invoice->client);
+
+        if (! $validation['valid']) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validation['message'],
+                ], 422);
+            }
+
+            return back()->with('error', $validation['message']);
+        }
+
+        $coupon = $validation['coupon'];
+        $updatedInvoice = $couponService->applyCouponToInvoice($coupon, $invoice, null);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $validation['message'],
+                'discount_amount' => (float) $updatedInvoice->discount_amount,
+                'total' => (float) $updatedInvoice->total,
+                'balance_due' => (float) $updatedInvoice->balance_due,
+                'coupon_code' => $updatedInvoice->coupon_code,
+            ]);
+        }
+
+        return back()->with('success', $validation['message']);
+    }
+
+    /**
+     * Remove an applied promotional coupon from the invoice.
+     */
+    public function removeCoupon(Request $request, string $token, CouponService $couponService): JsonResponse|RedirectResponse
+    {
+        $invoice = Invoice::with(['client', 'user'])
+            ->where('public_token', $token)
+            ->firstOrFail();
+
+        if ($invoice->isPaid()) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'This invoice has already been paid.'], 422);
+            }
+
+            return back()->with('error', 'This invoice has already been paid.');
+        }
+
+        $updatedInvoice = $couponService->removeCouponFromInvoice($invoice);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Coupon removed.',
+                'discount_amount' => 0.0,
+                'total' => (float) $updatedInvoice->total,
+                'balance_due' => (float) $updatedInvoice->balance_due,
+            ]);
+        }
+
+        return back()->with('success', 'Coupon removed.');
     }
 }
