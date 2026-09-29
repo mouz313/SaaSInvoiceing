@@ -75,7 +75,8 @@
         x-transition:leave="transition ease-in duration-200"
         x-transition:leave-start="opacity-100 scale-100"
         x-transition:leave-end="opacity-0 scale-95"
-        class="fixed inset-0 z-[9999] kinetic-menu-overlay text-white flex flex-col justify-between p-6 sm:p-12 lg:p-16 select-none overflow-y-auto"
+        class="fixed inset-0 z-[9999] bg-[#08080a] kinetic-menu-overlay text-white flex flex-col justify-between p-6 sm:p-12 lg:p-16 select-none overflow-y-auto"
+        style="background-color: #08080a !important; background: radial-gradient(circle at 50% 30%, #15161c 0%, #08080a 100%) !important;"
         role="dialog"
         aria-modal="true"
     >
@@ -92,16 +93,17 @@
                 </div>
             </a>
 
-            <!-- Close Button (· ✕ ·) -->
+            <!-- Close Button (· CLOSE ✕ ·) -->
             <button 
                 type="button" 
                 @click="fullMenuOpen = false"
-                class="group flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 hover:border-white/80 hover:bg-white/10 transition duration-300 text-xs font-mono tracking-widest text-slate-300 hover:text-white cursor-pointer"
+                class="group flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/25 hover:border-white text-xs font-mono tracking-widest text-white transition duration-200 cursor-pointer shadow-lg backdrop-blur-sm"
                 aria-label="Close menu"
             >
-                <span class="text-[10px] text-slate-500 group-hover:text-white transition">&middot;</span>
-                <span class="text-sm font-light leading-none">&times;</span>
-                <span class="text-[10px] text-slate-500 group-hover:text-white transition">&middot;</span>
+                <span class="text-[10px] text-blue-400 group-hover:text-white transition">&middot;</span>
+                <span class="text-xs font-bold uppercase tracking-wider">CLOSE</span>
+                <span class="text-sm font-bold leading-none">&times;</span>
+                <span class="text-[10px] text-blue-400 group-hover:text-white transition">&middot;</span>
             </button>
         </div>
 
