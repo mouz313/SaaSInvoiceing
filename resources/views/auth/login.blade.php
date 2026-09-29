@@ -29,7 +29,7 @@
     <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
         <div class="bg-white dark:bg-slate-900 py-8 px-6 sm:px-10 shadow-xl border border-slate-200 dark:border-slate-800 rounded-3xl space-y-6">
 
-            @if (app()->environment('local', 'testing'))
+            @if (app()->environment('local', 'testing') || config('app.demo_mode', false))
             <!-- 1-Click Fast Sandbox Logins -->
             <div class="mb-5 p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200 dark:border-blue-900/60 rounded-2xl">
                 <div class="flex items-center justify-between mb-2">

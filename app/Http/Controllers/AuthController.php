@@ -98,7 +98,7 @@ class AuthController extends Controller
 
     public function demoLogin(string $role): RedirectResponse
     {
-        if (! app()->environment('local', 'testing')) {
+        if (! app()->environment('local', 'testing') && ! config('app.demo_mode', false)) {
             abort(403, 'Demo login is disabled in this environment.');
         }
 
