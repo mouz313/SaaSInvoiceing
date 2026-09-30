@@ -28,11 +28,11 @@
                         @endif
                     </div>
                     <div style="font-size: 11px; color: #64748b;">{{ $invoice->user->email }}</div>
-                    @if($invoice->user->ntn || $invoice->user->strn)
+                    @if(!empty($invoice->user->ntn) || !empty($invoice->user->strn))
                         <div style="font-size: 10px; color: #475569; margin-top: 3px;">
-                            @if($invoice->user->ntn)<span>NTN: <strong>{{ $invoice->user->ntn }}</strong></span>@endif
-                            @if($invoice->user->ntn && $invoice->user->strn) &bull; @endif
-                            @if($invoice->user->strn)<span>STRN: <strong>{{ $invoice->user->strn }}</strong></span>@endif
+                            @if(!empty($invoice->user->ntn))<span>NTN: <strong>{{ $invoice->user->ntn }}</strong></span>@endif
+                            @if(!empty($invoice->user->ntn) && !empty($invoice->user->strn)) &bull; @endif
+                            @if(!empty($invoice->user->strn))<span>STRN: <strong>{{ $invoice->user->strn }}</strong></span>@endif
                         </div>
                     @endif
                 </td>
@@ -55,11 +55,11 @@
                 <div style="font-size: 14px; font-weight: 700; color: #0f172a; margin-top: 2px;">{{ $invoice->client->name }}</div>
                 @if($invoice->client->company_name)<div style="font-size: 11px; color: #475569;">{{ $invoice->client->company_name }}</div>@endif
                 @if($invoice->client->address)<div style="font-size: 10px; color: #64748b;">{{ $invoice->client->address }}</div>@endif
-                @if($invoice->client->ntn || $invoice->client->strn || $invoice->client->cnic)
+                @if(!empty($invoice->client->ntn) || !empty($invoice->client->strn) || !empty($invoice->client->cnic))
                     <div style="font-size: 9px; color: #64748b; margin-top: 3px;">
-                        @if($invoice->client->ntn)<span>NTN: <strong>{{ $invoice->client->ntn }}</strong></span>@endif
-                        @if($invoice->client->strn)<span style="margin-left: 6px;">STRN: <strong>{{ $invoice->client->strn }}</strong></span>@endif
-                        @if($invoice->client->cnic)<span style="margin-left: 6px;">CNIC: <strong>{{ $invoice->client->cnic }}</strong></span>@endif
+                        @if(!empty($invoice->client->ntn))<span>NTN: <strong>{{ $invoice->client->ntn }}</strong></span>@endif
+                        @if(!empty($invoice->client->strn))<span style="margin-left: 6px;">STRN: <strong>{{ $invoice->client->strn }}</strong></span>@endif
+                        @if(!empty($invoice->client->cnic))<span style="margin-left: 6px;">CNIC: <strong>{{ $invoice->client->cnic }}</strong></span>@endif
                     </div>
                 @endif
             </td>
@@ -140,11 +140,11 @@
                 </div>
             </div>
             <p class="text-xs text-slate-500">{{ $invoice->user->email }}</p>
-            @if($invoice->user->ntn || $invoice->user->strn)
+            @if(!empty($invoice->user->ntn) || !empty($invoice->user->strn))
                 <div class="flex items-center gap-2 mt-1 text-[11px] text-slate-600 dark:text-slate-400 font-medium">
-                    @if($invoice->user->ntn)<span>NTN: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->user->ntn }}</strong></span>@endif
-                    @if($invoice->user->ntn && $invoice->user->strn)<span class="text-slate-400">&bull;</span>@endif
-                    @if($invoice->user->strn)<span>STRN: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->user->strn }}</strong></span>@endif
+                    @if(!empty($invoice->user->ntn))<span>NTN: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->user->ntn }}</strong></span>@endif
+                    @if(!empty($invoice->user->ntn) && !empty($invoice->user->strn))<span class="text-slate-400">&bull;</span>@endif
+                    @if(!empty($invoice->user->strn))<span>STRN: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->user->strn }}</strong></span>@endif
                 </div>
             @endif
         </div>
@@ -169,11 +169,11 @@
             <p class="font-bold text-base text-slate-900 dark:text-white">{{ $invoice->client->name }}</p>
             @if($invoice->client->company_name)<p class="text-xs text-slate-600 dark:text-slate-300 font-medium">{{ $invoice->client->company_name }}</p>@endif
             @if($invoice->client->address)<p class="text-xs text-slate-500">{{ $invoice->client->address }}</p>@endif
-            @if($invoice->client->ntn || $invoice->client->strn || $invoice->client->cnic)
+            @if(!empty($invoice->client->ntn) || !empty($invoice->client->strn) || !empty($invoice->client->cnic))
                 <div class="flex items-center gap-2 mt-1.5 text-[11px] text-slate-500 font-medium flex-wrap">
-                    @if($invoice->client->ntn)<span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-700/60">NTN: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->client->ntn }}</strong></span>@endif
-                    @if($invoice->client->strn)<span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-700/60">STRN: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->client->strn }}</strong></span>@endif
-                    @if($invoice->client->cnic)<span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-700/60">CNIC: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->client->cnic }}</strong></span>@endif
+                    @if(!empty($invoice->client->ntn))<span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-700/60">NTN: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->client->ntn }}</strong></span>@endif
+                    @if(!empty($invoice->client->strn))<span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-700/60">STRN: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->client->strn }}</strong></span>@endif
+                    @if(!empty($invoice->client->cnic))<span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-700/60">CNIC: <strong class="text-slate-800 dark:text-slate-200">{{ $invoice->client->cnic }}</strong></span>@endif
                 </div>
             @endif
         </div>

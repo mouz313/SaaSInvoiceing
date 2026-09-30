@@ -60,11 +60,13 @@ class InvoiceTemplate extends Model
      */
     public static function sampleInvoice(?User $user = null): Invoice
     {
-        $mockUser = (object) [
-            'name' => $user?->name ?? 'Apex Creative Agency',
-            'company_name' => $user?->company_name ?? 'Apex Creative Studio LLC',
-            'email' => $user?->email ?? 'billing@apexstudio.design',
-        ];
+        $mockUser = $user ?? new User([
+            'name' => 'Apex Creative Agency',
+            'company_name' => 'Apex Creative Studio LLC',
+            'email' => 'billing@apexstudio.design',
+            'ntn' => '1234567-8',
+            'strn' => '32-77-8765-432-1',
+        ]);
 
         $mockClient = new Client([
             'name' => 'Nexus Global Technologies',
@@ -73,6 +75,9 @@ class InvoiceTemplate extends Model
             'city' => 'San Francisco',
             'country' => 'United States',
             'email' => 'finance@nexusglobal.com',
+            'ntn' => '7654321-0',
+            'strn' => '11-22-3344-555-6',
+            'cnic' => '42101-1234567-1',
         ]);
 
         $mockInvoice = new Invoice([
